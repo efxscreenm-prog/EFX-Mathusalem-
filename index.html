@@ -312,7 +312,7 @@ function csv(rows){const k=[...new Set(rows.flatMap(r=>Object.keys(r)))];const c
 R.admin=async(tab='contenus')=>{
   if(need())return;
   if(!admin)return set('<div class="card narrow"><h2>Accès réservé</h2><p>Connectez-vous avec le compte administrateur.</p><a class="btn" href="#/admin-login">Espace administrateur</a></div>');
-  const T=[['contenus','Contenus'],['services','Services'],['import','Importer les cours'],['paiements','Paiements'],['abonnes','Abonnés'],['candidatures','Candidatures']];
+  const T=[['contenus','Contenus'],['services','Services'],['import','Importer les cours'],['paiements','Paiements'],['abonnes','Abonnés'],['admins','Administrateurs'],['candidatures','Candidatures']];
   const head=`<h2>Tableau de bord</h2><div class="tabs">${T.map(([k,t])=>`<a class="btn ${k===tab?'':'alt'} sm" href="#/admin/${k}">${t}</a>`).join('')}</div>`;
   const dbtn=t=>x=>`<button class="btn sm danger" onclick="del('${t}',${x.id})">Supprimer</button>`;
   if(tab==='contenus'){
@@ -352,6 +352,10 @@ R.admin=async(tab='contenus')=>{
         $('#res').innerHTML=out.join('<br>');
       }
       $('#res').innerHTML=out.join('<br>')+'<br><b>Terminé.</b>'};
+  }else if(tab==='admins'){
+    const rows=((await db.rpc('list_admins')).data||[]).map(x=>({...x,principal:x.email.toLowerCase()===CFG.mail?'oui':''}));
+    set(head+`<form id="ad" class="card narrow"><h3>Ajouter un administrateur</h3><p class="small">La personne doit d’abord créer un compte sur le site et confirmer son e-mail. Elle aura les mêmes droits que vous (paiements, candidatures, contenus).</p><input name="email" type="email" placeholder="E-mail de la personne" required><button class="btn">Ajouter</button></form>`+tbl(rows,['email','created_at','principal'],x=>x.principal||x.user_id===user.id?'':`<button class="btn sm danger" onclick="rmAdmin('${x.user_id}')">Retirer</button>`));
+    $('#ad').onsubmit=async e=>{e.preventDefault();const{error}=await db.rpc('add_admin',{p_email:e.target.email.value});error?toast(error.message,1):(toast('Administrateur ajouté'),route())};
   }else if(tab==='abonnes'){
     const rows=(await q(db.from('subscriptions').select('*,profiles(full_name,phone)').order('ends_at',{ascending:false}))).map(x=>({...x,client:`${x.profiles?.full_name||''} ${x.profiles?.phone||''}`,etat:new Date(x.ends_at)>new Date()?'actif':'expiré'}));
     set(head+tbl(rows,['client','plan_id','starts_at','ends_at','etat']));
@@ -362,6 +366,7 @@ R.admin=async(tab='contenus')=>{
     $('#ex').onclick=()=>csv(_apps.map(x=>({id:x.id,date:x.created_at,type:x.kind,...x.data})));
   }
 };
+async function rmAdmin(id){if(!confirm('Retirer les droits d’administrateur à ce compte ?'))return;const{error}=await db.rpc('remove_admin',{p_user:id});error?toast(error.message,1):(toast('Administrateur retiré'),route())}
 async function showApp(id){
   const a=_apps.find(x=>x.id===id);
   const rows=await Promise.all(Object.entries(a.data).map(async([k,v])=>{
