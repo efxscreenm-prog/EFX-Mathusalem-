@@ -4,7 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>EFX STUDYPLACE</title>
-<link rel="icon" href="MyLogo.jpg">
+<link rel="icon" href="icon-192.png">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#b8860b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="EFX Study">
 <style>
 :root{--gold:#b8860b;--gold-d:#8a6508;--soft:#f6e9bd;--ink:#2a2012;--paper:#fbf7ec;--card:#fff;--line:#e4d7ae;--ok:#1b7a3a;--ko:#b3261e}
 @media(prefers-color-scheme:dark){:root{--gold:#d4a017;--gold-d:#e8b92e;--soft:#3a2f10;--ink:#f4ecd6;--paper:#17130a;--card:#211c10;--line:#3d3421}}
@@ -49,6 +54,14 @@ th,td{border:1px solid var(--line);padding:.4rem .6rem;text-align:left;vertical-
 .ok{color:var(--ok);font-weight:600}.small{font-size:.85rem}
 #toast{position:fixed;left:50%;bottom:1.2rem;transform:translate(-50%,200%);background:var(--ink);color:var(--paper);padding:.7rem 1.1rem;border-radius:10px;transition:transform .25s;max-width:90vw;z-index:9}
 #toast.show{transform:translate(-50%,0)}#toast.err{background:var(--ko);color:#fff}
+.me{display:flex;align-items:center;gap:.5rem;color:#f6e9bd;text-decoration:none;margin-left:.5rem}
+.me img,.me b{width:36px;height:36px;border-radius:50%;object-fit:cover;border:2px solid var(--gold);flex:none}
+.me b{display:grid;place-items:center;background:var(--gold);color:#fff;font-size:.95rem}
+.me span{max-width:9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:820px){.me span{display:none}}
+.avl{width:96px;height:96px;border-radius:50%;overflow:hidden;border:3px solid var(--gold);background:var(--soft)}
+.avl img{width:100%;height:100%;object-fit:cover;display:block}
+.avl b{display:grid;place-items:center;height:100%;font:700 2rem Georgia,serif;color:var(--gold-d)}
 fieldset{border:1px solid var(--line);border-radius:12px;padding:1rem;margin:0 0 1rem;min-width:0}
 legend{font:700 1.05rem Georgia,serif;padding:0 .4rem}
 .chk{display:flex;gap:.6rem;align-items:flex-start;font-weight:400}.chk input{margin-top:.3rem;flex:none}
@@ -68,6 +81,7 @@ footer{text-align:center;padding:1.5rem 1rem;border-top:1px solid var(--line);fo
   <nav id="nav">
     <a href="#/accueil">Accueil</a><a href="#/cours">Cours</a><a href="#/services">Produits et services</a><a href="#/abonnement">Abonnement</a><a href="#/candidature">Candidature</a><a href="#/apropos">À propos</a><a href="#/contact">Contact</a><a href="#/connexion">Se connecter</a>
   </nav>
+  <a id="me" class="me" href="#/compte"></a>
 </header>
 <main id="app">
   <section class="hero"><img src="MyLogo.jpg" alt="Logo EFX" onerror="this.remove()"><h1>Construire son avenir</h1><p>EFX STUDYPLACE est une plateforme de révision et de remise à niveau : cours PDF, audios, vidéos et images.</p><a class="btn" href="#/cours">Parcourir les cours</a> <a class="btn alt" href="#/abonnement">Voir les abonnements</a></section>
@@ -89,7 +103,11 @@ let db=null;
 try{if(!CFG.url.includes('VOTRE')&&window.supabase)db=supabase.createClient(CFG.url,CFG.key)}catch(e){console.error(e)}
 const ok=!!db;
 const PLANS=[{id:'mensuel',label:'Mensuel',price:3000},{id:'trimestriel',label:'Trimestriel',price:8500},{id:'semestriel',label:'Semestriel',price:17000},{id:'annuel',label:'Annuel',price:34000}];
-let user=null,admin=false,sub=null,_c=[],_apps=[],_idx={};
+let _dip=null;
+const isApp=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();_dip=e;nav();if(location.hash==='#/application')R.application()});
+window.addEventListener('appinstalled',()=>{_dip=null;nav();if(location.hash==='#/application')R.application()});
+let user=null,admin=false,sub=null,profile=null,_c=[],_apps=[],_idx={};
 const CAT=[[["TTL"],1,[["UE11","111","E.P.S 1"],["UE11","112","ANGLAIS 1"],["UE11","113","FRANÇAIS 1"],["UE11","114","DROIT 1"],["UE12","121","INFORMATIQUE 1"],["UE12","122","PROB.STAT.DESC"],["UE12","123","PHYSIQUES 1"],["UE13","131","INTRO.LOGISTIQUE"],["UE13","132","ECÔ.GENERALE"],["UE13","133","GEST.COMPTABLE"]]],[["TTL"],2,[["UE21","211","STAT.INFER"],["UE21","212","INFORMATIQUE 2"],["UE21","213","PHYSIQUES 2"],["UE21","214","MATHEMATIQUES 1"],["UE22","221","INTRO.SUPPLY.CHAIN"],["UE22","222","GÉO.FLUX"],["UE22","223","BASE.OPTIM.SIMU"],["UE22","224","MODES.TRANSPORTS"],["UE23","231","T.PRATIQUES 1"],["UE23","232","THERMOCHIMIE"]]],[["GLTCO"],1,[["UE11","111","E.P.S 1"],["UE11","112","ANGLAIS 1"],["UE11","113","FRANÇAIS 1"],["UE11","114","DROIT 1"],["UE12","121","INFORMATIQUE 1"],["UE12","122","PROB.STAT.DESC"],["UE12","123","PHYSIQUES 1"],["UE13","131","INTRO.LOGISTIQUE"],["UE13","132","ECÔ.GENERALE"],["UE13","133","GEST.COMPTABLE"]]],[["GLTCO"],2,[["UE21","211","STAT.INFER"],["UE21","212","INFORMATIQUE 2"],["UE21","213","PHYSIQUES 2"],["UE21","214","MATHEMATIQUES 1"],["UE22","221","INTRO.SUPPLY.CHAIN"],["UE22","222","GÉO.FLUX"],["UE22","223","BASE.OPTIM.SIMU"],["UE22","224","MODES.TRANSPORTS"],["UE23","231","T.PRATIQUES 1"],["UE23","232","THERMOCHIMIE"]]],[["TTL"],3,[["UE31","311","STAGE.OUVRIER"],["UE31","312","E.P.S 2"],["UE31","313","ANGLAIS 2"],["UE31","314","FRANÇAIS 2"],["UE31","315","DROIT2"],["UE32","321","INFORMATIQUE 3"],["UE32","322","PHYSIQUES 3"],["UE32","323","MATHEMATIQUES 2"],["UE33","331","MARK.TRANSP"],["UE33","332","GEST.ENT.COND"],["UE33","333","T.PRATIQUES 2"]]],[["TTL"],4,[["UE41","411","SYST.LOGISTIQUE"],["UE41","412","LOGISTIQUE.IN'L"],["UE41","413","GEST.PROD.PRODUC"],["UE41","414","GEST.STOCK.APPRO"],["UE42","421","INFORMATIQUE 4"],["UE42","422","MATHEMATIQUES 3"],["UE42","423","INTRO À LA R.O"],["UE42","424","PHYSIQUE 4"],["UE43","431","ETHIQUE.PRO"],["UE43","432","T.PRATIQUES 3"]]],[["GLTCO"],3,[["UE31","311","STAGE.OUVRIER"],["UE31","312","E.P.S 2"],["UE31","313","ANGLAIS 2"],["UE31","314","FRANÇAIS 2"],["UE31","315","DROIT2"],["UE32","321","INFORMATIQUE 3"],["UE32","322","PHYSIQUES 3"],["UE32","323","MATHEMATIQUES 2"],["UE33","331","MARK.TRANSP"],["UE33","332","GEST.ENT.COND"],["UE33","333","T.PRATIQUES 2"]]],[["GLTCO"],4,[["UE41","411","SYST.LOGISTIQUE"],["UE41","412","LOGISTIQUE.IN'L"],["UE41","413","GEST.PROD.PRODUC"],["UE41","414","GEST.STOCK.APPRO"],["UE42","421","INFORMATIQUE 4"],["UE42","422","MATHEMATIQUES 3"],["UE42","423","INTRO À LA R.O"],["UE42","424","PHYSIQUE 4"],["UE43","431","ETHIQUE.PRO"],["UE43","432","T.PRATIQUES 3"]]],[["AMA","GSI","TCT","GDT","GCIM","MFT","MLS"],5,[["UE51","511","E.P.S 1"],["UE51","512","ANGLAIS 1"],["UE51","513","FRANÇAIS 1"],["UE51","514","DROIT 1"],["UE52","521","INFORMATIQUE 1"],["UE52","522","PROB.STAT.DESC"],["UE52","523","PHYSIQUES 1"],["UE53","531","INTRO.LOGISTIQUE"],["UE53","532","ECÔ.GENERALE"],["UE53","533","GEST.COMPTABLE"]]],[["AMA","GSI","TCT","GDT","GCIM","MFT","MLS"],6,[["UE61","611","STAT.INFER"],["UE61","612","INFORMATIQUE 2"],["UE61","613","PHYSIQUES 2"],["UE61","614","MATHEMATIQUES 1"],["UE62","621","INTRO.SUPPLY.CHAIN"],["UE62","622","GÉO.FLUX"],["UE62","623","BASE.OPTIM.SIMU"],["UE62","624","MODES.TRANSPORTS"],["UE63","631","T.PRATIQUES 1"],["UE63","632","THERMOCHIMIE"]]],[["AMA","GSI","TCT","GDT","GCIM","MFT","MLS"],7,[["UE71","711","E.P.S 1"],["UE71","712","ANGLAIS 1"],["UE71","713","FRANÇAIS 1"],["UE71","714","DROIT 1"],["UE72","721","INFORMATIQUE 1"],["UE72","722","PROB.STAT.DESC"],["UE72","723","PHYSIQUES 1"],["UE73","731","INTRO.LOGISTIQUE"],["UE73","732","ECÔ.GENERALE"],["UE73","733","GEST.COMPTABLE"]]],[["AMA","GSI","TCT","GDT","GCIM","MFT","MLS"],8,[["UE81","811","STAT.INFER"],["UE81","812","INFORMATIQUE 2"],["UE81","813","PHYSIQUES 2"],["UE81","814","MATHEMATIQUES 1"],["UE82","821","INTRO.SUPPLY.CHAIN"],["UE82","822","GÉO.FLUX"],["UE82","823","BASE.OPTIM.SIMU"],["UE82","824","MODES.TRANSPORTS"],["UE83","831","T.PRATIQUES 1"],["UE83","832","THERMOCHIMIE"]]],[["AMA","GSI","TCT","GDT","GCIM","MFT","MLS"],9,[["UE91","911","E.P.S 1"],["UE91","912","ANGLAIS 1"],["UE91","913","FRANÇAIS 1"],["UE91","914","DROIT 1"],["UE92","921","INFORMATIQUE 1"],["UE92","922","PROB.STAT.DESC"],["UE92","923","PHYSIQUES 1"],["UE93","931","INTRO.LOGISTIQUE"],["UE93","932","ECÔ.GENERALE"],["UE93","933","GEST.COMPTABLE"]]],[["AMA","GSI","TCT","GDT","GCIM","MFT","MLS"],10,[["UE101","1011","STAT.INFER"],["UE101","1012","INFORMATIQUE 2"],["UE101","1013","PHYSIQUES 2"],["UE101","1014","MATHEMATIQUES 1"],["UE102","1021","INTRO.SUPPLY.CHAIN"],["UE102","1022","GÉO.FLUX"],["UE102","1023","BASE.OPTIM.SIMU"],["UE102","1024","MODES.TRANSPORTS"],["UE103","1031","T.PRATIQUES 1"],["UE103","1032","THERMOCHIMIE"]]]];
 const CAM={'Adamaoua':['Djérem','Faro-et-Déo','Mayo-Banyo','Mbéré','Vina'],'Centre':['Haute-Sanaga','Lekié','Mbam-et-Inoubou','Mbam-et-Kim','Méfou-et-Afamba','Méfou-et-Akono','Mfoundi','Nyong-et-Kéllé','Nyong-et-Mfoumou','Nyong-et-So’o'],'Est':['Boumba-et-Ngoko','Haut-Nyong','Kadey','Lom-et-Djérem'],'Extrême-Nord':['Diamaré','Logone-et-Chari','Mayo-Danay','Mayo-Kani','Mayo-Sava','Mayo-Tsanaga'],'Littoral':['Moungo','Nkam','Sanaga-Maritime','Wouri'],'Nord':['Bénoué','Faro','Mayo-Louti','Mayo-Rey'],'Nord-Ouest':['Boyo','Bui','Donga-Mantung','Menchum','Mezam','Momo','Ngoketunjia'],'Ouest':['Bamboutos','Haut-Nkam','Hauts-Plateaux','Koung-Khi','Menoua','Mifi','Ndé','Noun'],'Sud':['Dja-et-Lobo','Mvila','Océan','Vallée-du-Ntem'],'Sud-Ouest':['Fako','Koupé-Manengouba','Lebialem','Manyu','Meme','Ndian']};
 const PAYS='Cameroun,Afrique du Sud,Algérie,Angola,Bénin,Botswana,Burkina Faso,Burundi,Cap-Vert,République centrafricaine,Comores,Côte d’Ivoire,Djibouti,Égypte,Érythrée,Eswatini,Éthiopie,Gabon,Gambie,Ghana,Guinée,Guinée-Bissau,Guinée équatoriale,Kenya,Lesotho,Liberia,Libye,Madagascar,Malawi,Mali,Maroc,Maurice,Mauritanie,Mozambique,Namibie,Niger,Nigeria,Rwanda,République du Congo,République démocratique du Congo,Sao Tomé-et-Principe,Sénégal,Seychelles,Sierra Leone,Somalie,Soudan,Soudan du Sud,Tanzanie,Tchad,Togo,Tunisie,Ouganda,Zambie,Zimbabwe'.split(',');
@@ -115,9 +133,11 @@ const R={};
 function nav(){
   const L=[['accueil','Accueil'],['cours','Cours'],['services','Produits et services'],['abonnement','Abonnement'],['candidature','Candidature'],['apropos','À propos'],['contact','Contact']];
   if(admin)L.push(['admin','Tableau de bord']);
+  if(user&&(sub||admin)&&!isApp())L.push(['application','Télécharger l’application']);
   L.push(user?['compte','Mon compte']:['connexion','Se connecter']);
   const cur=(location.hash.slice(2)||'accueil').split('/')[0];
   $('#nav').innerHTML=L.map(([h,t])=>`<a href="#/${h}" class="${h===cur?'on':''}">${t}</a>`).join('');
+  drawMe();
 }
 $('#burger').onclick=()=>$('#nav').classList.toggle('open');
 function route(){
@@ -125,11 +145,34 @@ function route(){
   $('#nav').classList.remove('open');nav();
   (R[p]||R.accueil)(a);scrollTo(0,0);
 }
+const avUrl=p=>p&&db?db.storage.from('avatars').getPublicUrl(p).data.publicUrl:'';
+function drawMe(){
+  const m=$('#me');if(!m)return;
+  if(!user){m.innerHTML='';return}
+  const n=(profile?.full_name||user.email||'?').trim(),u=avUrl(profile?.avatar_path);
+  m.innerHTML=(u?`<img src="${esc(u)}" alt="Photo de profil">`:`<b>${esc(n[0].toUpperCase())}</b>`)+`<span>${esc(n.split(' ')[0])}</span>`;
+}
+const shrink=(file,S=256)=>new Promise((ok_,ko)=>{const i=new Image(),u=URL.createObjectURL(file);
+  i.onload=()=>{const m=Math.min(i.width,i.height),c=document.createElement('canvas');c.width=c.height=S;
+    c.getContext('2d').drawImage(i,(i.width-m)/2,(i.height-m)/2,m,m,0,0,S,S);URL.revokeObjectURL(u);
+    c.toBlob(b=>b?ok_(b):ko(new Error('Image illisible')),'image/jpeg',.85)};
+  i.onerror=()=>ko(new Error('Image illisible'));i.src=u});
+const loadProfile=async()=>{profile=(await db.from('profiles').select('*').eq('id',user.id).maybeSingle()).data};
+async function saveAvatar(blob){
+  const old=profile?.avatar_path,path=user.id+'/'+Date.now()+'.jpg';
+  const u=await db.storage.from('avatars').upload(path,blob,{contentType:'image/jpeg'});if(u.error)throw u.error;
+  const r=await db.from('profiles').update({avatar_path:path}).eq('id',user.id);if(r.error)throw r.error;
+  if(old)await db.storage.from('avatars').remove([old]);
+  await loadProfile();drawMe();
+}
 async function setUser(u){
-  user=u||null;admin=false;sub=null;
+  user=u||null;admin=false;sub=null;profile=null;
   if(user){
     admin=!!(await db.from('admins').select('user_id').eq('user_id',user.id).maybeSingle()).data;
     sub=(await q(db.from('subscriptions').select('*').eq('user_id',user.id).gt('ends_at',new Date().toISOString()).order('ends_at',{ascending:false}).limit(1)))[0]||null;
+    await loadProfile();
+    try{const pk='efx_av_'+(user.email||'').toLowerCase(),d=localStorage.getItem(pk);
+      if(d){localStorage.removeItem(pk);if(!profile?.avatar_path)await saveAvatar(await (await fetch(d)).blob())}}catch(x){console.error(x)}
   }
 }
 window.addEventListener('hashchange',route);
@@ -268,17 +311,27 @@ R.connexion=()=>{
   if(need())return;
   if(user){location.hash=admin?'#/admin':'#/compte';return}
   set(`<div class="card narrow"><h2>Connexion</h2><form id="lf"><input name="email" type="email" placeholder="E-mail" required autocomplete="username"><input name="password" type="password" placeholder="Mot de passe" required autocomplete="current-password"><button class="btn">Se connecter</button></form><p class="small"><a href="#" id="fg">Mot de passe oublié ?</a></p></div>
-  <div class="card narrow"><h2>Créer un compte</h2><form id="sf"><input name="full_name" placeholder="Nom complet" required><input name="phone" type="tel" placeholder="Téléphone"><input name="email" type="email" placeholder="E-mail" required autocomplete="username"><input name="password" type="password" minlength="8" placeholder="Mot de passe (8 caractères minimum)" required autocomplete="new-password"><label class="chk"><input type="checkbox" required><span>J’accepte les <a href="#/confidentialite">conditions d’utilisation et la politique de confidentialité</a></span></label><button class="btn">Créer mon compte</button></form></div>
+  <div class="card narrow"><h2>Créer un compte</h2><form id="sf"><input name="full_name" placeholder="Nom complet" required><input name="phone" type="tel" placeholder="Téléphone"><label>Photo de profil<input type="file" name="avatar" accept="image/*" required></label><input name="email" type="email" placeholder="E-mail" required autocomplete="username"><input name="password" type="password" minlength="8" placeholder="Mot de passe (8 caractères minimum)" required autocomplete="new-password"><label class="chk"><input type="checkbox" required><span>J’accepte les <a href="#/confidentialite">conditions d’utilisation et la politique de confidentialité</a></span></label><button class="btn">Créer mon compte</button></form></div>
   <p class="small" style="text-align:center"><a href="#/admin-login">Espace administrateur</a></p>`);
   $('#lf').onsubmit=e=>{e.preventDefault();doLogin(Object.fromEntries(new FormData(e.target)),false)};
   $('#fg').onclick=async e=>{e.preventDefault();const m=$('#lf').email.value.trim();if(!m)return toast('Saisissez d’abord votre e-mail',1);
     const{error}=await db.auth.resetPasswordForEmail(m,{redirectTo:location.href.split('#')[0]});
     error?toast(error.message,1):toast('Un lien de réinitialisation a été envoyé à cette adresse')};
-  $('#sf').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target));
-    const{data,error}=await db.auth.signUp({email:v.email,password:v.password,options:{data:{full_name:v.full_name,phone:v.phone}}});
-    if(error)return toast(error.message,1);
+  $('#sf').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target)),pk='efx_av_'+v.email.trim().toLowerCase();
+    try{const b=await shrink(v.avatar);const d=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(b)});localStorage.setItem(pk,d)}catch(x){return toast('Photo illisible : choisissez une image (JPG, PNG ou WebP)',1)}
+    const{data,error}=await db.auth.signUp({email:v.email.trim(),password:v.password,options:{data:{full_name:v.full_name,phone:v.phone}}});
+    if(error){try{localStorage.removeItem(pk)}catch{}return toast(error.message,1)}
     if(data.session){toast('Compte créé');location.hash='#/compte'}else toast('Compte créé. Confirmez votre e-mail avec le lien reçu, puis connectez-vous.')};
 };
+R.application=()=>{
+  if(!user||!(sub||admin))return set('<div class="card narrow"><h2>Application</h2><p>L’installation de l’application est réservée aux abonnés connectés.</p><a class="btn" href="#/abonnement">Voir les abonnements</a></div>');
+  const ios=/iphone|ipad|ipod/i.test(navigator.userAgent);
+  set(`<h2>Télécharger l’application</h2><div class="card narrow" style="text-align:center"><img src="icon-192.png" alt="" width="96" height="96" style="border-radius:20px" onerror="this.remove()"><h3>EFX STUDYPLACE</h3><p>Ajoutez un raccourci sur l’écran d’accueil de votre téléphone : le site s’ouvre comme une application, en plein écran.</p>${isApp()?'<p class="ok">L’application est déjà installée sur cet appareil.</p>':_dip?'<button class="btn" id="inst">Installer l’application</button>':''}</div>
+  ${isApp()?'':`<div class="card narrow"><h3>${_dip?'Si le bouton ne fonctionne pas':'Installation manuelle'}</h3>${ios?'<ol><li>Ouvrez ce site dans <b>Safari</b>.</li><li>Appuyez sur le bouton <b>Partager</b> (carré avec une flèche).</li><li>Choisissez <b>Sur l’écran d’accueil</b>, puis <b>Ajouter</b>.</li></ol>':'<ol><li>Ouvrez ce site dans <b>Chrome</b>.</li><li>Appuyez sur le menu <b>⋮</b> en haut à droite.</li><li>Choisissez <b>Installer l’application</b> ou <b>Ajouter à l’écran d’accueil</b>.</li><li>Confirmez avec <b>Installer</b> ou <b>Ajouter</b>.</li></ol>'}</div>`}`);
+  const b=$('#inst');
+  if(b)b.onclick=async()=>{_dip.prompt();const r=await _dip.userChoice;_dip=null;toast(r.outcome==='accepted'?'Installation en cours…':'Installation annulée');R.application()};
+};
+
 R['admin-login']=()=>{
   if(need())return;
   if(admin){location.hash='#/admin';return}
@@ -298,7 +351,25 @@ R.compte=async()=>{
   if(need())return;
   if(!user){location.hash='#/connexion';return}
   const p=await q(db.from('payments').select('*').eq('user_id',user.id).order('id',{ascending:false}));
-  set(`<h2>Mon compte</h2><div class="card"><p>${esc(user.email)}</p><p>${sub?`Abonnement <b>${esc(sub.plan_id)}</b> actif jusqu’au ${dt(sub.ends_at)}.`:'Aucun abonnement actif.'}</p><a class="btn" href="#/abonnement">${sub?'Prolonger':'S’abonner'}</a> <button class="btn alt" onclick="db.auth.signOut().then(()=>location.hash='#/accueil')">Se déconnecter</button></div><h3>Mes paiements</h3>${tbl(p,['created_at','plan_id','amount','method','tx_ref','status'])}`);
+  const u=avUrl(profile?.avatar_path),n=profile?.full_name||'';
+  set(`<h2>Mon compte</h2>
+  <form id="pf2" class="card"><h3>Mon profil</h3><div class="avl" id="avp">${u?`<img src="${esc(u)}" alt="Photo de profil">`:`<b>${esc((n||user.email)[0].toUpperCase())}</b>`}</div>
+  <label>Changer la photo de profil<input type="file" name="avatar" accept="image/*"></label>
+  <div class="fields"><label>Nom complet<input name="full_name" value="${esc(n)}" required></label><label>Téléphone<input name="phone" type="tel" value="${esc(profile?.phone||'')}"></label><label>E-mail<input name="email" type="email" value="${esc(user.email)}" required></label></div>
+  <button class="btn">Enregistrer les modifications</button></form>
+  <form id="pw" class="card"><h3>Changer le mot de passe</h3><input name="password" type="password" minlength="8" placeholder="Nouveau mot de passe (8 caractères minimum)" required autocomplete="new-password"><button class="btn">Modifier le mot de passe</button></form>
+  <div class="card"><p>${sub?`Abonnement <b>${esc(sub.plan_id)}</b> actif jusqu’au ${dt(sub.ends_at)}.`:'Aucun abonnement actif.'}</p><a class="btn" href="#/abonnement">${sub?'Prolonger':'S’abonner'}</a> <button class="btn alt" onclick="db.auth.signOut().then(()=>location.hash='#/accueil')">Se déconnecter</button>${(sub||admin)&&!isApp()?' <a class="btn alt" href="#/application">Télécharger l’application</a>':''}</div><h3>Mes paiements</h3>${tbl(p,['created_at','plan_id','amount','method','tx_ref','status'])}`);
+  $('#pf2 [name=avatar]').onchange=e=>{const f=e.target.files[0];if(f)$('#avp').innerHTML=`<img src="${URL.createObjectURL(f)}" alt="Aperçu">`};
+  $('#pf2').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target)),btn=e.target.querySelector('button');btn.disabled=true;
+    try{
+      if(v.avatar&&v.avatar.size)await saveAvatar(await shrink(v.avatar));
+      const{error}=await db.from('profiles').update({full_name:v.full_name.trim(),phone:v.phone.trim()}).eq('id',user.id);if(error)throw error;
+      let msg='Profil mis à jour';
+      if(v.email.trim().toLowerCase()!==user.email.toLowerCase()){const r=await db.auth.updateUser({email:v.email.trim()});if(r.error)throw r.error;msg='Profil mis à jour. Confirmez le changement d’e-mail avec le lien envoyé à la nouvelle adresse.'}
+      await loadProfile();drawMe();toast(msg);
+    }catch(x){toast(x.message||'Modification impossible',1)}
+    btn.disabled=false};
+  $('#pw').onsubmit=async e=>{e.preventDefault();const{error}=await db.auth.updateUser({password:e.target.password.value});error?toast(error.message,1):(toast('Mot de passe modifié'),e.target.reset())};
 };
 
 // ---------- Tableau de bord administrateur ----------
@@ -377,6 +448,7 @@ async function showApp(id){
 }
 
 // ---------- Démarrage (après la définition de toutes les pages) ----------
+if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
 route();
 if(db)db.auth.onAuthStateChange((e,s)=>{if(e==='TOKEN_REFRESHED')return;setTimeout(async()=>{await setUser(s?.user);if(e==='PASSWORD_RECOVERY')location.hash='#/nouveau-mot-de-passe';else route()},0)});
 </script>
