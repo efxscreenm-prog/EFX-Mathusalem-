@@ -62,12 +62,27 @@ th,td{border:1px solid var(--line);padding:.4rem .6rem;text-align:left;vertical-
 .avl{width:96px;height:96px;border-radius:50%;overflow:hidden;border:3px solid var(--gold);background:var(--soft)}
 .avl img{width:100%;height:100%;object-fit:cover;display:block}
 .avl b{display:grid;place-items:center;height:100%;font:700 2rem Georgia,serif;color:var(--gold-d)}
+progress{width:100%;height:.7rem;accent-color:var(--gold)}
+#efx-fab{position:fixed;right:1rem;bottom:1rem;z-index:8;border:0;border-radius:99px;background:var(--gold);color:#fff;font:700 1rem inherit;padding:.7rem 1.1rem;box-shadow:0 4px 14px rgba(0,0,0,.3);cursor:pointer}
+#efx{position:fixed;right:1rem;bottom:4.5rem;z-index:8;width:min(360px,calc(100vw - 2rem));height:min(480px,65vh);display:none;flex-direction:column;background:var(--card);border:2px solid var(--gold);border-radius:14px;overflow:hidden}
+#efx.open{display:flex}
+.eh{background:var(--ink);color:#f6e9bd;padding:.6rem .9rem;font:700 1rem Georgia,serif;display:flex;justify-content:space-between;align-items:center}
+#em{flex:1;overflow-y:auto;padding:.7rem;display:flex;flex-direction:column;gap:.5rem}
+.mb{max-width:88%;padding:.5rem .75rem;border-radius:12px;font-size:.92rem;overflow-wrap:anywhere}
+.mb.u{align-self:flex-end;background:var(--gold);color:#fff}.mb.b{align-self:flex-start;background:var(--soft)}
+#ef{display:flex;gap:.4rem;padding:.5rem;border-top:1px solid var(--line)}#ef input{flex:1}
+.chips{display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.4rem}.chips button{border:1px solid var(--gold);background:none;color:var(--gold-d);border-radius:99px;padding:.15rem .6rem;cursor:pointer;font-size:.8rem}
+.pc p{margin:.3rem 0}.upd{border-left:4px solid var(--gold)}
 fieldset{border:1px solid var(--line);border-radius:12px;padding:1rem;margin:0 0 1rem;min-width:0}
 legend{font:700 1.05rem Georgia,serif;padding:0 .4rem}
 .chk{display:flex;gap:.6rem;align-items:flex-start;font-weight:400}.chk input{margin-top:.3rem;flex:none}
 .cw{position:relative;margin-bottom:1.2rem}
 .car{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;border:2px solid var(--gold);border-radius:14px;background:var(--card)}
-.car img{flex:0 0 100%;max-height:320px;object-fit:contain;scroll-snap-align:center}
+.sl{flex:0 0 100%;position:relative;scroll-snap-align:center}
+.sl img{width:100%;max-height:320px;object-fit:contain;display:block}
+.sl p{position:absolute;left:0;right:0;bottom:0;margin:0;padding:.5rem 1rem;background:rgba(0,0,0,.6);color:#fff}
+.an img{width:100%;max-height:220px;object-fit:cover;border-radius:8px;margin-bottom:.6rem}
+.an p{white-space:pre-line}
 .cb{position:absolute;top:50%;transform:translateY(-50%);width:2.4rem;height:2.4rem;border-radius:50%;border:0;background:rgba(42,32,18,.65);color:#fff;font-size:1.1rem;cursor:pointer}.cb.l{left:.5rem}.cb.r{right:.5rem}
 .sep{margin:2rem 0 .6rem}
 footer{text-align:center;padding:1.5rem 1rem;border-top:1px solid var(--line);font-size:.9rem}
@@ -79,7 +94,7 @@ footer{text-align:center;padding:1.5rem 1rem;border-top:1px solid var(--line);fo
   <a class="brand" href="#/accueil"><img src="MyLogo.jpg" alt="" onerror="this.remove()">EFX STUDYPLACE</a>
   <button id="burger" aria-label="Menu">☰</button>
   <nav id="nav">
-    <a href="#/accueil">Accueil</a><a href="#/cours">Cours</a><a href="#/services">Produits et services</a><a href="#/abonnement">Abonnement</a><a href="#/candidature">Candidature</a><a href="#/apropos">À propos</a><a href="#/contact">Contact</a><a href="#/connexion">Se connecter</a>
+    <a href="#/accueil">Accueil</a><a href="#/cours">Cours</a><a href="#/culture">Culture</a><a href="#/projets">Projets</a><a href="#/services">Produits et services</a><a href="#/abonnement">Abonnement</a><a href="#/candidature">Candidature</a><a href="#/apropos">À propos</a><a href="#/contact">Contact</a><a href="#/connexion">Se connecter</a>
   </nav>
   <a id="me" class="me" href="#/compte"></a>
 </header>
@@ -92,6 +107,8 @@ footer{text-align:center;padding:1.5rem 1rem;border-top:1px solid var(--line);fo
   <a href="mailto:efxscreenm@gmail.com">efxscreenm@gmail.com</a> · 689054370 / 678166542 / 693020377<br>
   <a href="#/modalites">Modalités d’accès</a> · <a href="#/confidentialite">Conditions et confidentialité</a> · <a href="#/admin-login">Espace administrateur</a>
 </footer>
+<button id="efx-fab" aria-label="Discuter avec EFX">💬 EFX</button>
+<div id="efx" role="dialog" aria-label="Assistant EFX"><div class="eh"><span>EFX, votre assistant</span><button id="ex2" aria-label="Fermer" style="background:none;border:0;color:inherit;font-size:1.2rem;cursor:pointer">✕</button></div><div id="em"></div><form id="ef"><input id="ei" placeholder="Posez votre question…" autocomplete="off" required><button class="btn sm">Envoyer</button></form></div>
 <div id="toast" role="status"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.109.0/dist/umd/supabase.min.js"></script>
@@ -103,7 +120,7 @@ let db=null;
 try{if(!CFG.url.includes('VOTRE')&&window.supabase)db=supabase.createClient(CFG.url,CFG.key)}catch(e){console.error(e)}
 const ok=!!db;
 const PLANS=[{id:'mensuel',label:'Mensuel',price:3000},{id:'trimestriel',label:'Trimestriel',price:8500},{id:'semestriel',label:'Semestriel',price:17000},{id:'annuel',label:'Annuel',price:34000}];
-let _dip=null;
+let _dip=null,_sel=null,_pl=[],_svdb=[];
 const isApp=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();_dip=e;nav();if(location.hash==='#/application')R.application()});
 window.addEventListener('appinstalled',()=>{_dip=null;nav();if(location.hash==='#/application')R.application()});
@@ -125,13 +142,13 @@ const q=async p=>(await p).data||[];
 const set=h=>{$('#app').innerHTML=h};
 const toast=(m,e)=>{const t=$('#toast');t.textContent=m;t.className='show'+(e?' err':'');clearTimeout(t._t);t._t=setTimeout(()=>t.className='',3800)};
 const need=()=>{if(ok)return false;set('<div class="card"><h2>Configuration requise</h2><p>La base de données n’est pas connectée : renseignez l’URL et la clé Supabase au début du script de index.html (après avoir exécuté schema.sql), et vérifiez votre connexion internet.</p></div>');return true};
-const tbl=(r,c,act)=>`<div class="tw"><table><tr>${c.map(x=>`<th>${x}</th>`).join('')}${act?'<th>Action</th>':''}</tr>${r.map(x=>`<tr>${c.map(k=>`<td>${esc(/_at$/.test(k)?dt(x[k]):x[k])}</td>`).join('')}${act?`<td>${act(x)}</td>`:''}</tr>`).join('')||'<tr><td>Aucune donnée.</td></tr>'}</table></div>`;
+const tbl=(r,c,act)=>`<div class="tw"><table><tr>${c.map(x=>`<th>${x}</th>`).join('')}${act?'<th>Action</th>':''}</tr>${r.map(x=>`<tr>${c.map(k=>`<td>${esc(/_at$/.test(k)?(x[k]?dt(x[k]):''):x[k])}</td>`).join('')}${act?`<td>${act(x)}</td>`:''}</tr>`).join('')||'<tr><td>Aucune donnée.</td></tr>'}</table></div>`;
 const planCard=p=>`<div class="card plan"><h3>${p.label}</h3><div class="price">${fmt(p.price)}</div><a class="btn" href="#/abonnement/${p.id}">Choisir cette formule</a></div>`;
 const R={};
 
 // ---------- Navigation ----------
 function nav(){
-  const L=[['accueil','Accueil'],['cours','Cours'],['services','Produits et services'],['abonnement','Abonnement'],['candidature','Candidature'],['apropos','À propos'],['contact','Contact']];
+  const L=[['accueil','Accueil'],['cours','Cours'],['culture','Culture'],['projets','Projets'],['services','Produits et services'],['abonnement','Abonnement'],['candidature','Candidature'],['recherche','Rechercher'],['apropos','À propos'],['contact','Contact']];
   if(admin)L.push(['admin','Tableau de bord']);
   if(user&&(sub||admin)&&!isApp())L.push(['application','Télécharger l’application']);
   L.push(user?['compte','Mon compte']:['connexion','Se connecter']);
@@ -181,42 +198,66 @@ window.addEventListener('hashchange',route);
 // ---------- Pages publiques ----------
 const ROM=['','I','II','III','IV','V','VI','VII','VIII','IX','X'];
 const car=d=>{const c=$('#car');c.scrollBy({left:d*c.clientWidth,behavior:'smooth'})};
-R.accueil=()=>set(`<div class="cw"><div class="car" id="car"><img src="MyLogo.jpg" alt="Logo EFX STUDYPLACE" onerror="this.remove()"><img src="visite2.png" alt="Carte de visite EFX SCREEN" onerror="this.remove()"><img src="visite1.png" alt="Carte de visite EFX SCREEN" onerror="this.remove()"></div><button class="cb l" onclick="car(-1)" aria-label="Image précédente">❮</button><button class="cb r" onclick="car(1)" aria-label="Image suivante">❯</button></div>
+let _ci=null,_home={};
+const pub=p=>db.storage.from('site').getPublicUrl(p).data.publicUrl;
+const safe=l=>/^(https?:\/\/|#\/|mailto:)/.test(l||'')?l:'';
+const slide=x=>{const im=`<img src="${esc(pub(x.image_path))}" alt="${esc(x.caption||'')}">`;return `<div class="sl">${safe(x.link)?`<a href="${esc(safe(x.link))}">${im}</a>`:im}${x.caption?`<p>${esc(x.caption)}</p>`:''}</div>`};
+const annCard=x=>`<div class="card an">${x.image_path?`<img src="${esc(pub(x.image_path))}" alt="">`:''}<span class="tag">${x.is_pinned?'épinglée · ':''}${dt(x.created_at)}</span><h3>${esc(x.title)}</h3><p>${esc(x.body)}</p>${safe(x.link)?`<a class="btn sm" href="${esc(safe(x.link))}">En savoir plus</a>`:''}</div>`;
+const fit=(file,M=1280)=>new Promise((ok_,ko)=>{const i=new Image(),u=URL.createObjectURL(file);
+  i.onload=()=>{const k=Math.min(1,M/Math.max(i.width,i.height)),c=document.createElement('canvas'),g=c.getContext('2d');c.width=Math.round(i.width*k);c.height=Math.round(i.height*k);
+    g.fillStyle='#fff';g.fillRect(0,0,c.width,c.height);g.drawImage(i,0,0,c.width,c.height);URL.revokeObjectURL(u);
+    c.toBlob(b=>b?ok_(b):ko(new Error('Image illisible')),'image/jpeg',.82)};
+  i.onerror=()=>ko(new Error('Image illisible'));i.src=u});
+async function upImg(file,folder){const b=await fit(file),p=folder+'/'+Date.now()+'.jpg';const u=await db.storage.from('site').upload(p,b,{contentType:'image/jpeg'});if(u.error)throw u.error;return p}
+R.accueil=async()=>{set(`<div class="cw"><div class="car" id="car"><div class="sl"><img src="MyLogo.jpg" alt="Logo EFX STUDYPLACE" onerror="this.parentNode.remove()"></div><div class="sl"><img src="visite2.png" alt="Carte de visite EFX SCREEN" onerror="this.parentNode.remove()"></div><div class="sl"><img src="visite1.png" alt="Carte de visite EFX SCREEN" onerror="this.parentNode.remove()"></div></div><button class="cb l" onclick="car(-1)" aria-label="Image précédente">❮</button><button class="cb r" onclick="car(1)" aria-label="Image suivante">❯</button></div>
+<div id="ann"></div>
+<form class="row" onsubmit="event.preventDefault();location.hash='#/recherche/'+encodeURIComponent(this.q.value)"><input name="q" type="search" placeholder="Rechercher un cours, une année, un document…" required aria-label="Rechercher"><button class="btn">Rechercher</button></form>
 <section class="hero"><h1>Construire son avenir</h1><p>EFX STUDYPLACE est une plateforme numérique de révision, d’études et d’approfondissement. Elle vise la remise à niveau de tous les étudiants : documents, images, audios et vidéos pour comprendre et assimiler les cours manqués ou mal compris.</p><a class="btn" href="#/cours">Parcourir les cours</a> <a class="btn alt" href="#/abonnement">Voir les abonnements</a></section>
 <div class="grid sep"><div class="card"><h3>Vous avez déjà un compte ?</h3><p>Retrouvez vos cours et votre abonnement.</p><a class="btn" href="#/connexion">Se connecter</a></div><div class="card"><h3>Nouveau sur la plateforme ?</h3><p>Créez un compte en une minute. En vous inscrivant, vous acceptez nos <a href="#/confidentialite">conditions d’utilisation et notre politique de confidentialité</a>.</p><a class="btn" href="#/connexion">S’inscrire</a></div><div class="card"><h3>Concours et répétitions</h3><p>Postulez à l’ESTLC ou inscrivez-vous aux cours de répétition.</p><a class="btn" href="#/candidature">Déposer ma candidature</a></div></div>
 <h2>Nos formules d’abonnement</h2><div class="grid">${PLANS.map(planCard).join('')}</div>
 <h2 class="sep">Nous trouver</h2><div class="card"><p><b>Adresse :</b> Ambam, Ebolowa, Sud-Cameroun · B.P. 01 Ambam<br><b>E-mail :</b> <a href="mailto:${CFG.mail}">${CFG.mail}</a><br><b>Téléphone :</b> (+237) 689054370 / 678166542 / 693020377</p><a class="btn alt sm" href="#/contact">Nous écrire</a></div>`);
+  if(!db)return;
+  const[sl,an]=await Promise.all([q(db.from('slides').select('*').eq('is_active',true).order('sort_order').order('id')),q(db.from('announcements').select('*').eq('is_active',true).order('is_pinned',{ascending:false}).order('created_at',{ascending:false}).limit(8))]);
+  if(!$('#car'))return;
+  if(sl.length)$('#car').innerHTML=sl.map(slide).join('');
+  const live=an.filter(x=>!x.ends_at||new Date(x.ends_at)>new Date());
+  if(live.length)$('#ann').innerHTML=`<h2>Annonces</h2><div class="grid">${live.map(annCard).join('')}</div>`;
+  clearInterval(_ci);
+  if(!matchMedia('(prefers-reduced-motion: reduce)').matches)_ci=setInterval(()=>{const c=$('#car');if(!c){clearInterval(_ci);return}c.scrollLeft+c.clientWidth>=c.scrollWidth-5?c.scrollTo({left:0,behavior:'smooth'}):car(1)},5000);
+};
 
 function catHtml(f,n){
   return CAT.filter(([fs,s])=>Math.ceil(s/2)===n&&fs.includes(f)).map(([fs,s,rows])=>{
     const g=[];rows.forEach(r=>{const l=g[g.length-1];l&&l[0]===r[0]?l[1].push(r):g.push([r[0],[r]])});
-    return `<h3>Semestre ${ROM[s]}</h3><div class="tw"><table><tr><th>UE</th><th>EC</th><th>Intitulé</th><th>PDF</th></tr>${g.map(([ue,rs])=>rs.map((r,i)=>{const m=_idx[_yr+'|EC'+f+r[1]];return `<tr>${i?'':`<td rowspan="${rs.length}">${ue}</td>`}<td>EC${f}${r[1]}</td>${m?`<td>${esc(r[2])} <span class="tag">${m.is_premium?'abonnés':'gratuit'}</span></td><td><button class="btn sm" onclick="openFile(${m.id})">Ouvrir</button></td>`:`<td>${esc(r[2])}</td><td class="small">Bientôt disponible</td>`}</tr>`}).join('')).join('')}</table></div>`}).join('')||'<p>Aucun cours pour cette sélection.</p>';
+    return `<h3>Semestre ${ROM[s]}</h3><div class="tw"><table><tr><th>UE</th><th>EC</th><th>Intitulé</th><th>PDF</th></tr>${g.map(([ue,rs])=>rs.map((r,i)=>{const m=_idx[_yr+'|EC'+f+r[1]];return `<tr>${i?'':`<td rowspan="${rs.length}">${ue}</td>`}<td>EC${f}${r[1]}</td>${m?`<td>${esc(r[2])} <span class="tag">${m.is_premium?'abonnés':'gratuit'}</span></td><td><button class="btn sm" onclick="openFile(${m.id})">Ouvrir</button> <button class="btn sm alt" onclick="dlFile(${m.id})">Télécharger</button></td>`:`<td>${esc(r[2])}</td><td class="small">Bientôt disponible</td>`}</tr>`}).join('')).join('')}</table></div>`}).join('')||'<p>Aucun cours pour cette sélection.</p>';
 }
 R.cours=async(tab='pdf')=>{
   const K={pdf:'Cours PDF',doc:'Documents',audio:'Audios',video:'Vidéos',image:'Images'};
-  const inTab=c=>(!c.annee_academique||c.annee_academique===_yr)&&(tab==='doc'?['word','excel','powerpoint','autre'].includes(c.kind):c.kind===tab&&!(tab==='pdf'&&ECS.has(c.ue_code)));
+  const inTab=c=>c.section!=='culture'&&(!c.annee_academique||c.annee_academique===_yr)&&(tab==='doc'?['word','excel','powerpoint','autre'].includes(c.kind):c.kind===tab&&!(tab==='pdf'&&ECS.has(c.ue_code)));
   if(!K[tab])tab='pdf';
   _c=db?await q(db.from('contents').select('*').order('created_at',{ascending:false})):[];
   _idx={};_c.forEach(c=>{if(c.kind==='pdf'&&ECS.has(c.ue_code)&&c.annee_academique)_idx[c.annee_academique+'|'+c.ue_code]=c});
   const tabs=`<div class="tabs">${Object.entries(K).map(([k,t])=>`<a class="btn sm ${k===tab?'':'alt'}" href="#/cours/${k}">${t}</a>`).join('')}</div>`;
-  const cards=()=>{$('#list').innerHTML=_c.filter(inTab).map(c=>`<div class="card"><span class="tag">${c.kind}, ${c.is_premium?'premium':'gratuit'}</span><h3>${esc(c.title)}</h3><p class="small">${esc([c.annee_academique,c.filiere,c.niveau&&'Niveau '+c.niveau,c.semestre,c.ue_code].filter(Boolean).join(' · '))}</p><p>${esc(c.description)}</p><button class="btn sm" onclick="openFile(${c.id})">Ouvrir</button></div>`).join('')||`<p>Aucun contenu de ce type pour le moment.${db?'':' La connexion à la base de données n’est pas configurée.'}</p>`};
+  const cards=()=>{$('#list').innerHTML=_c.filter(inTab).map(contentCard).join('')||`<p>Aucun contenu de ce type pour le moment.${db?'':' La connexion à la base de données n’est pas configurée.'}</p>`};
   if(tab!=='pdf'){set(`<h2>${K[tab]}</h2>${tabs}<div class="row">${ysel()}</div><div id="list" class="grid"></div>`);$('#cy').onchange=()=>{_yr=$('#cy').value;cards()};return cards()}
   set(`<h2>Cours PDF</h2>${tabs}<p class="small">Choisissez l’année académique, le niveau et la filière : les cours affichés correspondent à l’année choisie. Les contenus premium (fichiers ajoutés depuis le tableau de bord) demandent un <a href="#/abonnement">abonnement actif</a>.</p>
   <div class="row">${ysel()}<label>Niveau<select id="cn">${[1,2,3,4,5].map(n=>`<option value="${n}">Niveau ${n}</option>`).join('')}</select></label><label>Filière<select id="cf"></select></label></div><div id="cat"></div><h3 class="sep">Documents ajoutés par l’administrateur</h3><div id="list" class="grid"></div>`);
   const fill=()=>{const n=+$('#cn').value;$('#cf').innerHTML=[...new Set(CAT.filter(c=>Math.ceil(c[1]/2)===n).flatMap(c=>c[0]))].map(f=>`<option>${f}</option>`).join('')};
   const draw=()=>{$('#cat').innerHTML=catHtml($('#cf').value,+$('#cn').value)};
-  $('#cn').onchange=()=>{fill();draw()};$('#cf').onchange=draw;$('#cy').onchange=()=>{_yr=$('#cy').value;draw();cards()};fill();draw();cards();
+  $('#cn').onchange=()=>{fill();draw()};$('#cf').onchange=draw;$('#cy').onchange=()=>{_yr=$('#cy').value;draw();cards()};if(_sel)$('#cn').value=_sel.n;fill();if(_sel){$('#cf').value=_sel.f;_sel=null}draw();cards();
 };
-async function openFile(id){
+async function getUrl(id,dl){
   const c=_c.find(x=>x.id===id);let u=c.file_path;
-  if(!/^https?:/.test(u)){
-    if(c.is_premium&&!sub&&!admin){toast('Un abonnement actif est requis',1);location.hash=user?'#/abonnement':'#/connexion';return}
-    const r=await db.storage.from('cours').createSignedUrl(u,3600);
-    if(r.error)return toast('Accès refusé : abonnement requis',1);
-    u=r.data.signedUrl;
-  }
-  window.open(u,'_blank','noopener');
+  if(/^https?:/.test(u))return u;
+  if(c.is_premium&&!sub&&!admin){toast('Un abonnement actif est requis pour ce document',1);location.hash=user?'#/abonnement':'#/connexion';return null}
+  const nm=String(c.title).replace(/[^\p{L}\p{N}\- ]+/gu,'').trim()+'.'+(u.split('.').pop()||'pdf');
+  const r=await db.storage.from('cours').createSignedUrl(u,3600,dl?{download:nm}:undefined);
+  if(r.error){toast('Accès refusé : abonnement requis',1);return null}
+  return r.data.signedUrl;
 }
+async function openFile(id){const u=await getUrl(id,false);if(u)window.open(u,'_blank','noopener')}
+async function dlFile(id){const u=await getUrl(id,true);if(u){const a=document.createElement('a');a.href=u;a.download='';a.rel='noopener';document.body.appendChild(a);a.click();a.remove()}}
+const contentCard=c=>`<div class="card"><span class="tag">${esc([c.category||c.kind,c.is_premium?'abonnés':'gratuit'].join(' · '))}</span><h3>${esc(c.title)}</h3><p class="small">${esc([c.annee_academique,c.filiere,c.niveau&&'Niveau '+c.niveau,c.semestre,c.ue_code].filter(Boolean).join(' · '))}</p><p>${esc(c.description)}</p><button class="btn sm" onclick="openFile(${c.id})">Ouvrir</button> <button class="btn sm alt" onclick="dlFile(${c.id})">Télécharger</button></div>`;
 
 R.services=async()=>{
   const g={};SV.forEach(([k,v])=>g[k]=v.map(t=>({title:t})));
@@ -297,7 +338,7 @@ R.contact=()=>{
     catch{toast('Envoi impossible : écrivez-nous directement par e-mail',1)}};
 };
 
-R.confidentialite=()=>set(`<h2>Conditions d’utilisation et confidentialité</h2><div class="card"><p>Le service est réservé aux personnes majeures. Les contenus sont destinés à un usage personnel d’étude et ne peuvent pas être revendus ni redistribués.</p><p>Nous collectons les informations que vous saisissez (compte, paiements, candidatures) uniquement pour fournir le service. Elles sont accessibles à l’administrateur et ne sont jamais vendues. Pour demander la suppression de vos données, écrivez à ${CFG.mail}.</p><p>Les abonnements ne sont pas remboursables une fois l’accès activé. Un abonnement actif donne accès à tous les contenus premium jusqu’à sa date de fin.</p></div>`);
+R.confidentialite=()=>set(`<h2>Conditions d’utilisation et confidentialité</h2><div class="card"><p>Le service est réservé aux personnes majeures. Les contenus sont destinés à un usage personnel d’étude et ne peuvent pas être revendus ni redistribués.</p><p>Nous collectons les informations que vous saisissez (compte, paiements, candidatures) uniquement pour fournir le service. Elles sont accessibles à l’administrateur et ne sont jamais vendues. Pour demander la suppression de vos données, écrivez à ${CFG.mail}.</p><p>L’assistant EFX enregistre les questions posées afin de s’améliorer. Pour répondre à des questions de culture générale, il peut interroger Wikipédia avec les mots de la question : ne saisissez pas d’informations personnelles dans le chat.</p><p>Les abonnements ne sont pas remboursables une fois l’accès activé. Un abonnement actif donne accès à tous les contenus premium jusqu’à sa date de fin.</p></div>`);
 
 // ---------- Compte ----------
 async function doLogin(v,needAdmin){
@@ -330,6 +371,136 @@ R.application=()=>{
   ${isApp()?'':`<div class="card narrow"><h3>${_dip?'Si le bouton ne fonctionne pas':'Installation manuelle'}</h3>${ios?'<ol><li>Ouvrez ce site dans <b>Safari</b>.</li><li>Appuyez sur le bouton <b>Partager</b> (carré avec une flèche).</li><li>Choisissez <b>Sur l’écran d’accueil</b>, puis <b>Ajouter</b>.</li></ol>':'<ol><li>Ouvrez ce site dans <b>Chrome</b>.</li><li>Appuyez sur le menu <b>⋮</b> en haut à droite.</li><li>Choisissez <b>Installer l’application</b> ou <b>Ajouter à l’écran d’accueil</b>.</li><li>Confirmez avec <b>Installer</b> ou <b>Ajouter</b>.</li></ol>'}</div>`}`);
   const b=$('#inst');
   if(b)b.onclick=async()=>{_dip.prompt();const r=await _dip.userChoice;_dip=null;toast(r.outcome==='accepted'?'Installation en cours…':'Installation annulée');R.application()};
+};
+
+// ---------- Recherche ----------
+const STOP=new Set('le la les un une des de du d l et ou a au aux en dans sur pour par avec sans est sont que qui quoi comment quand je tu il elle nous vous ils me te se ce cet cette ces mon ma mes ton ta tes votre vos notre nos y pas ne plus c qu s j m t n on si ai as avez avons peut peux puis veux voudrais svp merci'.split(' '));
+const norm=t=>String(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const toks=t=>norm(t).split(/[^a-z0-9]+/).filter(w=>w.length>1&&!STOP.has(w));
+const PAGES=[['accueil','Accueil','accueil annonces carrousel presentation'],['cours','Cours','cours pdf filiere niveau semestre annee academique documents audio video image'],['culture','Culture','livres romans videos educatives epreuves bibliotheque'],['projets','Projets','projet suivi feuille de route taches equipe'],['services','Produits et services','bureautique infographie programmation education patisserie telecom'],['abonnement','Abonnement','prix tarif mensuel trimestriel semestriel annuel mobile money orange mtn'],['candidature','Candidature','concours estlc repetition inscription formulaire'],['modalites','Modalités d’accès','modalites acces paiement etapes'],['apropos','À propos','presentation mission efx screen'],['contact','Contact','contact message email telephone'],['connexion','Se connecter','connexion inscription compte mot de passe']];
+async function loadAll(){
+  if(!db)return;
+  _c=await q(db.from('contents').select('*').order('created_at',{ascending:false}));
+  _svdb=await q(db.from('services').select('*'));
+  if(user)_pl=await q(db.from('projects').select('*'));
+}
+function find(qs){
+  const T=toks(qs),yrs=YEARS.filter(y=>T.some(t=>/^20\d\d$/.test(t)&&y.includes(t))),W=T.filter(t=>!/^20\d\d$/.test(t));
+  const all=(h,w)=>{h=h+' '+h.replace(/[^a-z0-9 ]/g,'');return w.length>0&&w.every(x=>h.includes(x))};
+  const cat=[];
+  if(W.length)CAT.forEach(([fs,sm,rows])=>fs.forEach(f=>rows.forEach(r=>{if(all(norm(`${f} niveau ${Math.ceil(sm/2)} semestre ${ROM[sm]} s${sm} ${r[0]} ec${f}${r[1]} ${r[2]}`),W))cat.push({f,n:Math.ceil(sm/2),s:sm,t:r[2],ec:'EC'+f+r[1],y:yrs[0]||_yr})})));
+  const docs=_c.filter(c=>all(norm([c.title,c.description,c.filiere,c.niveau&&'niveau '+c.niveau,c.semestre,c.ue_code,c.annee_academique,c.category,c.kind,c.section==='culture'?'culture':'cours'].join(' ')),T));
+  const pages=PAGES.filter(p=>all(norm(p[1]+' '+p[2]),T));
+  const svc=[...SV.flatMap(([k,v])=>v.map(t=>({k,t}))),..._svdb.map(x=>({k:x.category,t:x.title+(x.description?'. '+x.description:'')}))].filter(x=>all(norm(x.k+' '+x.t),T));
+  const prj=_pl.filter(p=>all(norm([p.title,p.summary,p.domain,p.owner_name].join(' ')),T));
+  return{cat,docs,pages,svc,prj};
+}
+function goCat(f,n,y){_sel={f,n};_yr=y;if(location.hash==='#/cours/pdf')route();else location.hash='#/cours/pdf'}
+function resHtml(r){
+  const row=h=>`<div class="card" style="margin-bottom:.5rem">${h}</div>`,sec=(t,a)=>a.length?`<h3>${t} (${a.length})</h3>`+a.join(''):'';
+  const out=sec('Pages',r.pages.map(p=>row(`<a href="#/${p[0]}"><b>${p[1]}</b></a>`)))
+   +sec('Cours du catalogue',r.cat.slice(0,40).map(x=>row(`<b>${esc(x.t)}</b> <span class="small">${x.ec} · ${x.f} · Niveau ${x.n} · Semestre ${ROM[x.s]} · ${x.y}</span> <button class="btn sm" onclick="goCat('${x.f}',${x.n},'${x.y}')">Voir</button>`)))
+   +sec('Documents',r.docs.slice(0,40).map(c=>row(`<b>${esc(c.title)}</b> <span class="small">${esc([c.section==='culture'?'culture':'cours',c.category||c.kind,c.annee_academique,c.filiere,c.niveau&&'Niveau '+c.niveau].filter(Boolean).join(' · '))}</span> <button class="btn sm" onclick="openFile(${c.id})">Ouvrir</button> <button class="btn sm alt" onclick="dlFile(${c.id})">Télécharger</button>`)))
+   +sec('Projets',r.prj.map(p=>row(`<a href="#/projet/${p.id}"><b>${esc(p.title)}</b></a> <span class="small">${esc(p.owner_name)}</span>`)))
+   +sec('Services',r.svc.slice(0,20).map(x=>row(`<b>${esc(x.k)}</b> : ${esc(x.t)}`)));
+  return out||'<p>Aucun résultat. Essayez d’autres mots (matière, filière, année, titre…).</p>';
+}
+R.recherche=async a=>{
+  const term=decodeURIComponent(a||'');
+  set(`<h2>Rechercher dans le site</h2><form id="sq" class="row"><input id="qi" type="search" value="${esc(term)}" placeholder="Cours, années, documents, projets…" aria-label="Rechercher"><button class="btn">Rechercher</button></form><div id="sr"><p>Chargement…</p></div>`);
+  await loadAll();
+  const go=()=>{const v=$('#qi').value.trim();$('#sr').innerHTML=v?resHtml(find(v)):'<p class="small">Tapez un mot : matière, filière, année académique (ex. 2024-2025), titre d’un livre, d’une épreuve ou d’un projet.</p>'};
+  $('#sq').onsubmit=e=>{e.preventDefault();go()};$('#qi').oninput=go;go();
+};
+
+// ---------- Culture ----------
+R.culture=async(cat='tous')=>{
+  const C={tous:'Tout',livre:'Livres',roman:'Romans',video:'Vidéos éducatives',epreuve:'Épreuves',autre:'Autres'};
+  if(!C[cat])cat='tous';
+  await loadAll();
+  const tabs=`<div class="tabs">${Object.entries(C).map(([k,t])=>`<a class="btn sm ${k===cat?'':'alt'}" href="#/culture/${k}">${t}</a>`).join('')}</div>`;
+  set(`<h2>Culture</h2><p>Livres, romans, vidéos éducatives, épreuves et autres ressources à consulter et à télécharger.</p>${tabs}<div class="row"><input id="cq" type="search" placeholder="Rechercher dans la culture…" aria-label="Rechercher"></div><div id="list" class="grid"></div>`);
+  const draw=()=>{const k=toks($('#cq').value);$('#list').innerHTML=_c.filter(c=>c.section==='culture'&&(cat==='tous'||c.category===cat)&&k.every(w=>norm([c.title,c.description,c.annee_academique,c.filiere].join(' ')).includes(w))).map(contentCard).join('')||`<p>Aucun document pour le moment.${db?'':' La connexion à la base de données n’est pas configurée.'}</p>`};
+  $('#cq').oninput=draw;draw();
+};
+
+// ---------- Projets ----------
+const dtt=d=>new Date(d).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'});
+const loginCard=t=>set(`<div class="card narrow"><h2>${t}</h2><p>Connectez-vous pour accéder aux projets.</p><a class="btn" href="#/connexion">Se connecter</a></div>`);
+async function joinReq(id){const{error}=await db.rpc('request_join',{pid:id});error?toast(error.message,1):(toast('Demande envoyée'),route())}
+async function decide(pid,uid,ok_){const{error}=await db.rpc('decide_join',{pid:pid,p_uid:uid,accept:ok_});error?toast(error.message,1):(toast(ok_?'Membre accepté':'Demande refusée'),route())}
+async function projFile(p){const r=await db.storage.from('projects').createSignedUrl(p,3600);r.error?toast('Fichier indisponible',1):window.open(r.data.signedUrl,'_blank','noopener')}
+async function taskEdit(id,v){if(!v.trim())return;const{error}=await db.from('project_tasks').update({label:v.trim()}).eq('id',id);error?toast(error.message,1):toast('Tâche modifiée')}
+async function taskDone(id,v){const{error}=await db.from('project_tasks').update({is_done:v,done_at:v?new Date().toISOString():null}).eq('id',id);error?toast(error.message,1):route()}
+async function taskDel(id){if(!confirm('Supprimer cette tâche ?'))return;const{error}=await db.from('project_tasks').delete().eq('id',id);error?toast(error.message,1):route()}
+async function delProject(id){
+  if(!confirm('Supprimer définitivement ce projet, ses tâches et ses fichiers ?'))return;
+  const d=await q(db.from('project_details').select('roadmap_path').eq('project_id',id)),u=await q(db.from('project_updates').select('file_path').eq('project_id',id));
+  const paths=[...d.map(x=>x.roadmap_path),...u.map(x=>x.file_path)].filter(Boolean);
+  if(paths.length)await db.storage.from('projects').remove(paths);
+  const{error}=await db.from('projects').delete().eq('id',id);error?toast(error.message,1):(toast('Projet supprimé'),route());
+}
+R.projets=async()=>{
+  if(need())return;if(!user)return loginCard('Projets');
+  const[ps,mine]=await Promise.all([q(db.from('projects').select('*').order('created_at',{ascending:false})),q(db.from('project_members').select('project_id,status').eq('user_id',user.id))]);
+  _pl=ps;const st={};mine.forEach(m=>st[m.project_id]=m.status);
+  set(`<h2>Projets</h2><p>Soumettez votre projet pour être suivi, ou rejoignez celui d’un autre membre (avec l’accord du porteur du projet ou de l’administrateur).</p><a class="btn" href="#/projet-nouveau">Soumettre un projet</a><div class="row sep"><input id="pq" type="search" placeholder="Rechercher un projet…" aria-label="Rechercher"></div><div id="pl" class="grid"></div>`);
+  const draw=()=>{const k=toks($('#pq').value);$('#pl').innerHTML=ps.filter(p=>k.every(w=>norm([p.title,p.summary,p.domain,p.owner_name].join(' ')).includes(w))).map(p=>`<div class="card pc"><span class="tag">${p.status==='completed'?'terminé':'en cours'}</span><h3>${esc(p.title)}</h3><p class="small">${esc(p.owner_name)}${p.domain?' · '+esc(p.domain):''} · ${dt(p.created_at)}</p><p>${esc(p.summary)}</p><progress value="${p.tasks_done}" max="${p.tasks_total||1}"></progress><p class="small">${p.tasks_done}/${p.tasks_total} tâches</p>${admin||st[p.id]==='accepted'?`<a class="btn sm" href="#/projet/${p.id}">Ouvrir</a>`:st[p.id]==='pending'?'<span class="small">Demande en attente</span>':st[p.id]==='rejected'?'<span class="small">Demande refusée</span>':`<button class="btn sm" onclick="joinReq(${p.id})">Demander à rejoindre</button>`}</div>`).join('')||'<p>Aucun projet pour le moment.</p>'};
+  $('#pq').oninput=draw;draw();
+};
+R['projet-nouveau']=()=>{
+  if(need())return;if(!user)return loginCard('Soumettre un projet');
+  let T=[{num:1,label:''}];
+  set(`<h2>Soumettre un projet</h2><form id="pj" class="card"><div class="fields"><label>Titre du projet<input name="title" required></label><label>Domaine<input name="domain" placeholder="Logistique, informatique, mécanique…"></label><label>Date de début<input type="date" name="start_date"></label><label>Date de fin prévue<input type="date" name="end_date"></label></div>
+  <label>Résumé (visible par tous les membres)<textarea name="summary" rows="2" maxlength="250" required></textarea></label><label>Description détaillée (visible par l’équipe)<textarea name="description" rows="4" required></textarea></label><label>Objectifs<textarea name="objectives" rows="3"></textarea></label>
+  <label>Feuille de route (PDF, Word, image…)<input type="file" name="roadmap" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,image/*"></label>
+  <h3>Tâches de la feuille de route</h3><p class="small">Numéro et libellé de chaque tâche. Vous pourrez les modifier ou les supprimer ici, et plus tard depuis la page du projet.</p><div id="tk"></div><button type="button" class="btn alt sm" id="addt">Ajouter une tâche</button>
+  <p class="small">En validant, le projet est enregistré avec la date et l’heure, et transmis à l’administrateur.</p><button class="btn" id="pjs">Valider et soumettre le projet</button></form>`);
+  const draw=()=>{$('#tk').innerHTML=T.map((t,i)=>`<div class="row"><input type="number" min="1" value="${t.num}" data-i="${i}" data-f="num" style="flex:0 0 5.5rem" aria-label="Numéro de la tâche"><input value="${esc(t.label)}" data-i="${i}" data-f="label" placeholder="Libellé de la tâche" aria-label="Libellé"><button type="button" class="btn sm danger" data-del="${i}">Supprimer</button></div>`).join('')};
+  draw();
+  $('#tk').oninput=e=>{const i=e.target.dataset.i;if(i!=null)T[i][e.target.dataset.f]=e.target.dataset.f==='num'?+e.target.value:e.target.value};
+  $('#tk').onclick=e=>{const d=e.target.dataset.del;if(d!=null){T.splice(+d,1);draw()}};
+  $('#addt').onclick=()=>{T.push({num:Math.max(0,...T.map(t=>t.num||0))+1,label:''});draw()};
+  $('#pj').onsubmit=async e=>{e.preventDefault();
+    const v=Object.fromEntries(new FormData(e.target)),tk=T.map(t=>({num:t.num,label:(t.label||'').trim()})),btn=$('#pjs');
+    if(!tk.length||tk.some(t=>!t.label||!t.num))return toast('Chaque tâche doit avoir un numéro et un libellé',1);
+    if(new Set(tk.map(t=>t.num)).size!==tk.length)return toast('Les numéros de tâches doivent être différents',1);
+    btn.disabled=true;
+    try{
+      let path=null;const f=v.roadmap;
+      if(f&&f.size){path=user.id+'/roadmap-'+Date.now()+'-'+f.name.replace(/[^\w.-]/g,'_');const u=await db.storage.from('projects').upload(path,f);if(u.error)throw u.error}
+      const{data,error}=await db.rpc('create_project',{p_title:v.title,p_summary:v.summary,p_domain:v.domain||null,p_description:v.description,p_objectives:v.objectives||null,p_start:v.start_date||null,p_end:v.end_date||null,p_roadmap:path,p_tasks:tk});
+      if(error)throw error;
+      fetch('https://formsubmit.co/ajax/'+CFG.mail,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({_subject:'EFX STUDYPLACE : nouveau projet « '+v.title+' »',projet:v.title,auteur:`${profile?.full_name||''} (${user.email})`,date_et_heure:new Date().toLocaleString('fr-FR'),domaine:v.domain,resume:v.summary,description:v.description,objectifs:v.objectives,taches:tk.map(t=>t.num+'. '+t.label).join('\n'),feuille_de_route:f&&f.size?f.name:'(aucune)',lien:location.href.split('#')[0]+'#/projet/'+data})}).catch(()=>{});
+      toast('Projet enregistré');location.hash='#/projet/'+data;
+    }catch(x){toast(x.message||'Échec de l’enregistrement',1);btn.disabled=false}};
+};
+R.projet=async id=>{
+  if(need())return;if(!user)return loginCard('Projet');
+  id=+id;
+  const p=(await q(db.from('projects').select('*').eq('id',id)))[0];
+  if(!p)return set('<div class="card"><p>Projet introuvable.</p><a class="btn" href="#/projets">Retour aux projets</a></div>');
+  const mem=await q(db.from('project_members').select('*').eq('project_id',id));
+  const mine=mem.find(m=>m.user_id===user.id),can=admin||mine?.status==='accepted',owner=admin||p.owner_id===user.id;
+  const top=`<a href="#/projets" class="small">Retour aux projets</a><h2>${esc(p.title)}</h2><p><span class="tag">${p.status==='completed'?'terminé le '+dt(p.completed_at):'en cours'}</span> <span class="small">par ${esc(p.owner_name)} · soumis le ${dtt(p.created_at)}</span></p><progress value="${p.tasks_done}" max="${p.tasks_total||1}"></progress><p class="small">${p.tasks_done}/${p.tasks_total} tâches terminées</p>`;
+  if(!can)return set(top+`<div class="card"><p>${esc(p.summary)}</p><p class="small">Le détail du projet est réservé à ses membres.</p>${mine?.status==='pending'?'<p>Votre demande est en attente de validation.</p>':mine?.status==='rejected'?'<p>Votre demande a été refusée.</p>':`<button class="btn" onclick="joinReq(${id})">Demander à rejoindre</button>`}</div>`);
+  const[dd,tasks,ups]=await Promise.all([q(db.from('project_details').select('*').eq('project_id',id)),q(db.from('project_tasks').select('*').eq('project_id',id).order('num')),q(db.from('project_updates').select('*').eq('project_id',id).order('id',{ascending:false}))]);
+  const d=dd[0]||{},acc=mem.filter(m=>m.status==='accepted'),pend=mem.filter(m=>m.status==='pending');
+  set(top+`<div class="card pc"><p>${esc(p.summary)}</p>${d.description?`<h3>Description</h3><p style="white-space:pre-line">${esc(d.description)}</p>`:''}${d.objectives?`<h3>Objectifs</h3><p style="white-space:pre-line">${esc(d.objectives)}</p>`:''}<p class="small">${d.start_date?'Début : '+dt(d.start_date)+' · ':''}${d.end_date?'Fin prévue : '+dt(d.end_date):''}</p>${d.roadmap_path?`<button class="btn sm" onclick="projFile('${esc(d.roadmap_path)}')">Télécharger la feuille de route</button>`:''}</div>
+  <h3>Tâches</h3><div class="tw"><table><tr><th>N°</th><th>Tâche</th><th>État</th>${owner?'<th>Action</th>':''}</tr>${tasks.map(t=>`<tr><td>${t.num}</td><td>${owner?`<input value="${esc(t.label)}" onchange="taskEdit(${t.id},this.value)">`:esc(t.label)}</td><td>${owner?`<input type="checkbox" ${t.is_done?'checked':''} onchange="taskDone(${t.id},this.checked)"> `:(t.is_done?'terminée ':'à faire ')}${t.done_at?`<span class="small">${dtt(t.done_at)}</span>`:''}</td>${owner?`<td><button class="btn sm danger" onclick="taskDel(${t.id})">Supprimer</button></td>`:''}</tr>`).join('')}</table></div>
+  ${owner?`<form id="nt" class="row"><input name="num" type="number" min="1" value="${Math.max(0,...tasks.map(t=>t.num))+1}" style="flex:0 0 5.5rem" aria-label="Numéro"><input name="label" placeholder="Nouvelle tâche" required aria-label="Libellé"><button class="btn sm">Ajouter la tâche</button></form>`:''}
+  <h3 class="sep">Progression</h3>${owner?`<form id="up" class="card"><label>Où en êtes-vous par rapport à la feuille de route ?<textarea name="body" rows="3" required></textarea></label><div class="fields"><label>Tâche terminée (facultatif)<select name="task"><option value="">Aucune</option>${tasks.filter(t=>!t.is_done).map(t=>`<option value="${t.id}">${t.num}. ${esc(t.label)}</option>`).join('')}</select></label><label>Fichier (facultatif)<input type="file" name="file"></label></div><button class="btn">Envoyer la progression</button></form>`:''}
+  ${ups.map(u=>`<div class="card upd"><span class="tag">${dtt(u.created_at)}</span><p style="white-space:pre-line">${esc(u.body)}</p>${u.file_path?`<button class="btn sm alt" onclick="projFile('${esc(u.file_path)}')">Télécharger le fichier</button>`:''}</div>`).join('')||'<p>Aucune progression envoyée pour le moment.</p>'}
+  <h3 class="sep">Équipe</h3><div class="card"><ul>${acc.map(m=>`<li>${esc(m.full_name)} <span class="small">${m.role==='owner'?'porteur du projet':'membre'}</span></li>`).join('')}</ul></div>
+  ${owner&&pend.length?`<h3>Demandes pour rejoindre</h3>${pend.map(m=>`<div class="card"><b>${esc(m.full_name)}</b> <span class="small">${dtt(m.created_at)}</span> <button class="btn sm" onclick="decide(${id},'${m.user_id}',true)">Accepter</button> <button class="btn sm danger" onclick="decide(${id},'${m.user_id}',false)">Refuser</button></div>`).join('')}`:''}`);
+  if(owner){
+    $('#nt').onsubmit=async e=>{e.preventDefault();const f=e.target,{error}=await db.from('project_tasks').insert({project_id:id,num:+f.num.value,label:f.label.value.trim()});error?toast(error.code==='23505'?'Ce numéro de tâche existe déjà':error.message,1):route()};
+    $('#up').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target));
+      try{let path=null;if(v.file&&v.file.size){path=user.id+'/progress-'+Date.now()+'-'+v.file.name.replace(/[^\w.-]/g,'_');const u=await db.storage.from('projects').upload(path,v.file);if(u.error)throw u.error}
+        const r=await db.from('project_updates').insert({project_id:id,user_id:user.id,body:v.body,file_path:path});if(r.error)throw r.error;
+        if(v.task){const t=await db.from('project_tasks').update({is_done:true,done_at:new Date().toISOString()}).eq('id',+v.task);if(t.error)throw t.error}
+        toast('Progression envoyée');route()}catch(x){toast(x.message||'Échec de l’envoi',1)}};
+  }
 };
 
 R['admin-login']=()=>{
@@ -383,20 +554,33 @@ function csv(rows){const k=[...new Set(rows.flatMap(r=>Object.keys(r)))];const c
 R.admin=async(tab='contenus')=>{
   if(need())return;
   if(!admin)return set('<div class="card narrow"><h2>Accès réservé</h2><p>Connectez-vous avec le compte administrateur.</p><a class="btn" href="#/admin-login">Espace administrateur</a></div>');
-  const T=[['contenus','Contenus'],['services','Services'],['import','Importer les cours'],['paiements','Paiements'],['abonnes','Abonnés'],['admins','Administrateurs'],['candidatures','Candidatures']];
+  const T=[['contenus','Contenus'],['accueil','Accueil'],['services','Services'],['import','Importer les cours'],['paiements','Paiements'],['abonnes','Abonnés'],['admins','Administrateurs'],['projets','Projets'],['chatbot','Chatbot'],['candidatures','Candidatures']];
   const head=`<h2>Tableau de bord</h2><div class="tabs">${T.map(([k,t])=>`<a class="btn ${k===tab?'':'alt'} sm" href="#/admin/${k}">${t}</a>`).join('')}</div>`;
   const dbtn=t=>x=>`<button class="btn sm danger" onclick="del('${t}',${x.id})">Supprimer</button>`;
   if(tab==='contenus'){
     const rows=await q(db.from('contents').select('*').order('id',{ascending:false}));
-    set(head+`<form id="af" class="card"><h3>Ajouter un contenu</h3><div class="fields"><label>Type<select name="kind"><option value="auto">Détecter automatiquement</option><option value="pdf">PDF</option><option value="word">Word</option><option value="excel">Excel</option><option value="powerpoint">PowerPoint</option><option value="audio">Audio</option><option value="video">Vidéo</option><option value="image">Image</option><option value="autre">Autre</option></select></label><label>Titre<input name="title" required></label><label>Année académique<select name="annee_academique"><option value="">Toutes les années</option>${YEARS.map(y=>`<option>${y}</option>`).join('')}</select></label><label>Filière<input name="filiere" placeholder="TTL, GLTCO, AMA, GSI"></label><label>Niveau<input name="niveau" placeholder="1 à 5"></label><label>Semestre<input name="semestre"></label><label>Code UE / EC<input name="ue_code"></label></div>
+    set(head+`<form id="af" class="card"><h3>Ajouter un contenu</h3><div class="fields"><label>Type<select name="kind"><option value="auto">Détecter automatiquement</option><option value="pdf">PDF</option><option value="word">Word</option><option value="excel">Excel</option><option value="powerpoint">PowerPoint</option><option value="audio">Audio</option><option value="video">Vidéo</option><option value="image">Image</option><option value="autre">Autre</option></select></label><label>Titre<input name="title" required></label><label>Section<select name="section"><option value="cours">Cours</option><option value="culture">Culture</option></select></label><label>Catégorie (culture)<select name="category"><option value="">Aucune</option><option value="livre">Livre</option><option value="roman">Roman</option><option value="video">Vidéo éducative</option><option value="epreuve">Épreuve</option><option value="autre">Autre</option></select></label><label>Année académique<select name="annee_academique"><option value="">Toutes les années</option>${YEARS.map(y=>`<option>${y}</option>`).join('')}</select></label><label>Filière<input name="filiere" placeholder="TTL, GLTCO, AMA, GSI"></label><label>Niveau<input name="niveau" placeholder="1 à 5"></label><label>Semestre<input name="semestre"></label><label>Code UE / EC<input name="ue_code"></label></div>
     <label>Description<textarea name="description" rows="2"></textarea></label><label><span><input type="checkbox" name="is_premium" checked> Réservé aux abonnés</span></label>
-    <label>Fichier (PDF, Word, Excel, PowerPoint, audio, vidéo, image… 50 Mo max)<input type="file" name="file"></label><label>ou lien externe (contenus gratuits uniquement)<input name="url" type="url"></label><button class="btn">Ajouter à la base</button></form>${tbl(rows,['id','kind','title','annee_academique','filiere','niveau','semestre','ue_code','is_premium','size_bytes'],dbtn('contents'))}`);
+    <label>Fichier (PDF, Word, Excel, PowerPoint, audio, vidéo, image… 50 Mo max)<input type="file" name="file"></label><label>ou lien externe (contenus gratuits uniquement)<input name="url" type="url"></label><button class="btn">Ajouter à la base</button></form>${tbl(rows,['id','kind','title','section','category','annee_academique','filiere','niveau','semestre','ue_code','is_premium','size_bytes'],dbtn('contents'))}`);
     $('#af').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target)),prem=v.is_premium==='on',file=v.file;let path=(v.url||'').trim();
       if(file&&file.size){path=(prem?'premium/':'free/')+Date.now()+'-'+file.name.replace(/[^\w.-]/g,'_');const u=await db.storage.from('cours').upload(path,file);if(u.error)return toast(u.error.message,1)}
       if(!path)return toast('Ajoutez un fichier ou un lien',1);
       if(prem&&/^https?:/.test(path))return toast('Un contenu premium doit être un fichier téléversé',1);
-      const{error}=await db.from('contents').insert({kind:v.kind==='auto'?guess(file&&file.size?file.name:path):v.kind,mime_type:file&&file.size?file.type||null:null,size_bytes:file&&file.size?file.size:null,title:v.title,description:v.description,annee_academique:v.annee_academique||null,filiere:v.filiere,niveau:v.niveau,semestre:v.semestre,ue_code:v.ue_code,file_path:path,is_premium:prem});
+      const{error}=await db.from('contents').insert({kind:v.kind==='auto'?guess(file&&file.size?file.name:path):v.kind,mime_type:file&&file.size?file.type||null:null,size_bytes:file&&file.size?file.size:null,title:v.title,description:v.description,section:v.section||'cours',category:v.category||null,annee_academique:v.annee_academique||null,filiere:v.filiere,niveau:v.niveau,semestre:v.semestre,ue_code:v.ue_code,file_path:path,is_premium:prem});
       error?toast(error.message,1):(toast('Contenu ajouté'),route())};
+  }else if(tab==='accueil'){
+    const sl=await q(db.from('slides').select('*').order('sort_order').order('id')),an=await q(db.from('announcements').select('*').order('id',{ascending:false}));
+    _home={slides:sl,announcements:an};
+    const act=t=>x=>`<button class="btn sm alt" onclick="toggleHome('${t}',${x.id},${!x.is_active})">${x.is_active?'Masquer':'Afficher'}</button> <button class="btn sm danger" onclick="delHome('${t}',${x.id})">Supprimer</button>`;
+    set(head+`<form id="sf2" class="card"><h3>Ajouter une image au carrousel</h3><div class="fields"><label>Image<input type="file" name="image" accept="image/*" required></label><label>Légende (facultatif)<input name="caption"></label><label>Lien (facultatif)<input name="link" placeholder="#/abonnement ou https://…"></label><label>Ordre d’affichage<input name="sort_order" type="number" value="0"></label></div><button class="btn">Ajouter au carrousel</button></form>
+    ${tbl(sl.map(x=>({...x,etat:x.is_active?'affichée':'masquée'})),['id','caption','sort_order','etat','created_at'],act('slides'))}
+    <form id="af3" class="card" style="margin-top:1.5rem"><h3>Publier une annonce</h3><div class="fields"><label>Titre<input name="title" required></label><label>Image (facultatif)<input type="file" name="image" accept="image/*"></label><label>Lien (facultatif)<input name="link" placeholder="#/candidature ou https://…"></label><label>Visible jusqu’au (facultatif)<input name="ends_at" type="date"></label></div><label>Texte<textarea name="body" rows="3"></textarea></label><label><span><input type="checkbox" name="is_pinned"> Épingler en premier</span></label><button class="btn">Publier l’annonce</button></form>
+    ${tbl(an.map(x=>({...x,etat:x.is_active?'affichée':'masquée',epinglee:x.is_pinned?'oui':''})),['id','title','etat','epinglee','ends_at','created_at'],act('announcements'))}`);
+    $('#sf2').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target));
+      try{const p=await upImg(v.image,'slides');const{error}=await db.from('slides').insert({image_path:p,caption:v.caption||null,link:v.link||null,sort_order:+v.sort_order||0});if(error)throw error;toast('Image ajoutée au carrousel');route()}catch(x){toast(x.message||'Échec de l’ajout',1)}};
+    $('#af3').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target));
+      try{const p=v.image&&v.image.size?await upImg(v.image,'annonces'):null;
+        const{error}=await db.from('announcements').insert({title:v.title,body:v.body||null,link:v.link||null,image_path:p,is_pinned:v.is_pinned==='on',ends_at:v.ends_at?new Date(v.ends_at+'T23:59:59').toISOString():null});if(error)throw error;toast('Annonce publiée');route()}catch(x){toast(x.message||'Échec de la publication',1)}};
   }else if(tab==='services'){
     const rows=await q(db.from('services').select('*').order('id',{ascending:false}));
     set(head+`<form id="sv" class="card"><h3>Ajouter un service ou une offre</h3><div class="fields"><label>Catégorie<input name="category" required></label><label>Titre<input name="title" required></label></div><label>Description<textarea name="description" rows="2"></textarea></label><button class="btn">Ajouter à la base</button></form>${tbl(rows,['id','category','title','description'],dbtn('services'))}`);
@@ -427,6 +611,17 @@ R.admin=async(tab='contenus')=>{
     const rows=((await db.rpc('list_admins')).data||[]).map(x=>({...x,principal:x.email.toLowerCase()===CFG.mail?'oui':''}));
     set(head+`<form id="ad" class="card narrow"><h3>Ajouter un administrateur</h3><p class="small">La personne doit d’abord créer un compte sur le site et confirmer son e-mail. Elle aura les mêmes droits que vous (paiements, candidatures, contenus).</p><input name="email" type="email" placeholder="E-mail de la personne" required><button class="btn">Ajouter</button></form>`+tbl(rows,['email','created_at','principal'],x=>x.principal||x.user_id===user.id?'':`<button class="btn sm danger" onclick="rmAdmin('${x.user_id}')">Retirer</button>`));
     $('#ad').onsubmit=async e=>{e.preventDefault();const{error}=await db.rpc('add_admin',{p_email:e.target.email.value});error?toast(error.message,1):(toast('Administrateur ajouté'),route())};
+  }else if(tab==='projets'){
+    const rows=(await q(db.from('projects').select('*').order('id',{ascending:false}))).map(x=>({...x,avancement:x.tasks_done+'/'+x.tasks_total}));
+    set(head+'<p class="small">Seul l’administrateur peut supprimer un projet. « Ouvrir » affiche la page complète du projet (tâches, progression, demandes).</p>'+tbl(rows,['id','title','owner_name','status','avancement','created_at'],x=>`<a class="btn sm" href="#/projet/${x.id}">Ouvrir</a> <button class="btn sm danger" onclick="delProject(${x.id})">Supprimer</button>`));
+  }else if(tab==='chatbot'){
+    const logs=await q(db.from('chat_logs').select('*').order('id',{ascending:false}).limit(300)),fq=await q(db.from('faq').select('*').order('id',{ascending:false}));
+    const un=[...new Map(logs.filter(l=>!l.matched).map(l=>[norm(l.question),l])).values()];
+    set(head+`<p class="small">EFX répond avec ses connaissances de base, les questions-réponses ci-dessous et une recherche dans le site. Quand il ne sait pas, la question arrive ici : donnez la réponse et il l’apprend aussitôt.</p><h3>Questions sans réponse (${un.length})</h3>`+(un.map(l=>`<form class="card learn"><p><b>${esc(l.question)}</b> <span class="small">${dtt(l.created_at)}</span></p><input type="hidden" name="question" value="${esc(l.question)}"><textarea name="answer" rows="2" placeholder="Votre réponse…" required></textarea><button class="btn sm">Enseigner cette réponse à EFX</button></form>`).join('')||'<p>Aucune pour le moment.</p>')+`<h3>Questions-réponses apprises (${fq.length})</h3>`+tbl(fq,['id','question','answer'],dbtn('faq'))+`<form id="fq2" class="card" style="margin-top:1rem"><h3>Ajouter une question-réponse</h3><label>Question<input name="question" required></label><label>Mots-clés supplémentaires (facultatif)<input name="keywords"></label><label>Réponse<textarea name="answer" rows="3" required></textarea></label><button class="btn">Ajouter</button></form><p class="small">${logs.length} dernières conversations enregistrées.</p>`);
+    document.querySelectorAll('.learn').forEach(f=>f.onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(f));
+      const r=await db.from('faq').insert({question:v.question,answer:v.answer});if(r.error)return toast(r.error.message,1);
+      await db.from('chat_logs').update({matched:true}).eq('question',v.question);toast('EFX a appris cette réponse');route()});
+    $('#fq2').onsubmit=async e=>{e.preventDefault();const{error}=await db.from('faq').insert(Object.fromEntries(new FormData(e.target)));error?toast(error.message,1):(toast('Ajouté'),route())};
   }else if(tab==='abonnes'){
     const rows=(await q(db.from('subscriptions').select('*,profiles(full_name,phone)').order('ends_at',{ascending:false}))).map(x=>({...x,client:`${x.profiles?.full_name||''} ${x.profiles?.phone||''}`,etat:new Date(x.ends_at)>new Date()?'actif':'expiré'}));
     set(head+tbl(rows,['client','plan_id','starts_at','ends_at','etat']));
@@ -437,6 +632,9 @@ R.admin=async(tab='contenus')=>{
     $('#ex').onclick=()=>csv(_apps.map(x=>({id:x.id,date:x.created_at,type:x.kind,...x.data})));
   }
 };
+async function toggleHome(t,id,v){const{error}=await db.from(t).update({is_active:v}).eq('id',id);error?toast(error.message,1):route()}
+async function delHome(t,id){if(!confirm('Supprimer définitivement cet élément ?'))return;const r=(_home[t]||[]).find(x=>x.id===id);
+  if(r&&r.image_path)await db.storage.from('site').remove([r.image_path]);const{error}=await db.from(t).delete().eq('id',id);error?toast(error.message,1):route()}
 async function rmAdmin(id){if(!confirm('Retirer les droits d’administrateur à ce compte ?'))return;const{error}=await db.rpc('remove_admin',{p_user:id});error?toast(error.message,1):(toast('Administrateur retiré'),route())}
 async function showApp(id){
   const a=_apps.find(x=>x.id===id);
@@ -446,6 +644,154 @@ async function showApp(id){
   $('#detail').innerHTML=`<div class="card"><h3>Candidature n° ${id} (${esc(a.kind)})</h3><div class="tw"><table>${rows.join('')}</table></div></div>`;
   $('#detail').scrollIntoView({behavior:'smooth'});
 }
+
+// ---------- Assistant EFX ----------
+const KB=[
+['abonnement abonner prix tarif tarifs mensuel trimestriel semestriel annuel cout formule formules',`Nos formules : ${PLANS.map(p=>p.label+' '+fmt(p.price)).join(', ')}. <a href="#/abonnement">Voir les abonnements</a>`],
+['payer paiement paye mtn orange mobile money reference valider validation',`Pour payer : envoyez le montant par MTN Mobile Money au ${CFG.mtn} ou par Orange Money au ${CFG.om}, puis saisissez la référence reçue par SMS sur la page <a href="#/abonnement">Abonnement</a>. L’administrateur vérifie et active votre accès.`],
+['inscription inscrire compte creer connexion connecter mot passe',`Créez votre compte depuis <a href="#/connexion">Se connecter</a> (nom, téléphone, photo, e-mail, mot de passe), puis confirmez votre e-mail.`],
+['cours pdf annee academique filiere niveau semestre ue',`Rendez-vous sur <a href="#/cours">Cours</a> : choisissez l’année académique, le niveau et la filière. Vous pouvez aussi utiliser <a href="#/recherche">la recherche</a>.`],
+['telecharger telechargement download document fichier',`Chaque document a un bouton Ouvrir et un bouton Télécharger. Les documents réservés aux abonnés demandent un <a href="#/abonnement">abonnement actif</a>.`],
+['application installer installation ecran accueil raccourci telephone',`Une fois votre abonnement actif, le lien « Télécharger l’application » apparaît dans le menu : il ajoute un raccourci sur l’écran d’accueil de votre téléphone.`],
+['concours estlc candidature dossier pieces',`Le formulaire de candidature au concours de l’ESTLC est sur la page <a href="#/candidature/concours">Candidature</a>. Les modalités sont sur <a href="#/modalites">Modalités d’accès</a>.`],
+['repetition remise niveau soutien',`Pour les cours de répétition, remplissez <a href="#/candidature/repetition">ce formulaire</a> avec votre CNI et votre portrait. Nous vous contactons ensuite.`],
+['projet projets suivi rejoindre feuille route taches',`Sur <a href="#/projets">Projets</a>, vous pouvez soumettre un projet (feuille de route et tâches) ou demander à rejoindre celui d’un autre membre. Le projet est terminé quand toutes ses tâches sont terminées.`],
+['culture livre livres roman romans epreuve epreuves video videos educatives',`Livres, romans, vidéos éducatives et épreuves sont sur la page <a href="#/culture">Culture</a>, à consulter et à télécharger.`],
+['contact contacter joindre email telephone adresse ambam ecrire',`Écrivez-nous à <a href="mailto:${CFG.mail}">${CFG.mail}</a> ou appelez le 689054370 / 678166542 / 693020377. Adresse : Ambam, Ebolowa, Sud-Cameroun.`],
+['service services bureautique infographie programmation patisserie restauration telecom',`Retrouvez tous nos services sur <a href="#/services">Produits et services</a>.`],
+['recherche rechercher chercher trouver',`Utilisez <a href="#/recherche">la recherche</a> pour trouver un cours, une année, un document, un projet ou un service.`]];
+const KC=[
+['theoreme pythagore triangle rectangle hypotenuse','Théorème de Pythagore : dans un triangle rectangle, le carré de l’hypoténuse est égal à la somme des carrés des deux autres côtés : a² + b² = c².'],
+['theoreme thales proportionnelles paralleles','Théorème de Thalès : dans un triangle, si une droite parallèle à un côté coupe les deux autres, les longueurs sont proportionnelles : AM/AB = AN/AC = MN/BC.'],
+['aire perimetre cercle disque circonference rayon','Disque de rayon r : aire = π × r², circonférence = 2 × π × r.'],
+['valeur pi nombre pi','π (pi) vaut environ 3,14159265. C’est le rapport entre la circonférence d’un cercle et son diamètre.'],
+['vitesse lumiere celerite','La lumière se propage à environ 299 792 km/s (299 792 458 m/s dans le vide).'],
+['gravite pesanteur intensite acceleration terre','Sur Terre, l’accélération de la pesanteur est d’environ 9,81 m/s².'],
+['loi ohm tension resistance intensite','Loi d’Ohm : U = R × I (tension en volts, résistance en ohms, intensité en ampères).'],
+['loi newton force masse acceleration deuxieme','Deuxième loi de Newton : F = m × a (force en newtons, masse en kg, accélération en m/s²).'],
+['formule vitesse distance temps vitesse moyenne','Vitesse moyenne : v = d / t (distance divisée par le temps).'],
+['energie cinetique formule','Énergie cinétique : Ec = ½ × m × v².'],
+['planetes systeme solaire','Le système solaire compte 8 planètes : Mercure, Vénus, la Terre, Mars, Jupiter, Saturne, Uranus et Neptune.'],
+['ebullition eau temperature congelation','À pression normale, l’eau bout à 100 °C et gèle à 0 °C.'],
+['chiffres romains nombres romains','I = 1, V = 5, X = 10, L = 50, C = 100, D = 500, M = 1000.'],
+['afrique nombre pays africains','L’Afrique compte 54 pays reconnus par l’ONU.'],
+['cameroun langues officielles langue officielle','Le Cameroun a deux langues officielles : le français et l’anglais.'],
+['cameroun devise nationale','La devise du Cameroun est « Paix – Travail – Patrie ».'],
+['cameroun independance reunification fete nationale 20 mai','Le Cameroun français est devenu indépendant le 1er janvier 1960 ; la réunification avec le Cameroun méridional date du 1er octobre 1961. La fête nationale est le 20 mai (unification de 1972).'],
+['cameroun monnaie franc cfa xaf','La monnaie du Cameroun est le franc CFA (XAF). 1 euro = 655,957 FCFA (parité fixe).'],
+['regions cameroun liste chefs lieux','Les 10 régions du Cameroun et leurs chefs-lieux : Adamaoua (Ngaoundéré), Centre (Yaoundé), Est (Bertoua), Extrême-Nord (Maroua), Littoral (Douala), Nord (Garoua), Nord-Ouest (Bamenda), Ouest (Bafoussam), Sud (Ebolowa), Sud-Ouest (Buea).'],
+['logistique definition','La logistique regroupe les activités qui organisent les flux de marchandises, d’informations et de ressources, de l’approvisionnement jusqu’à la livraison au client.'],
+['incoterms definition','Les Incoterms sont des règles internationales de la CCI qui répartissent coûts, risques et responsabilités entre vendeur et acheteur (par exemple EXW, FCA, FOB, CIF, DAP, DDP).'],
+['supply chain chaine logistique definition','La supply chain (chaîne logistique) est l’ensemble des étapes qui mènent un produit du fournisseur au client : approvisionnement, production, stockage, transport et distribution.'],
+['transport multimodal intermodal definition','Le transport multimodal utilise plusieurs modes de transport (route, rail, mer, air) pour un même envoi, sous un seul contrat.']];
+const CAPS=`Cameroun:Yaoundé;Afrique du Sud:Pretoria (capitale administrative ; Le Cap : législative ; Bloemfontein : judiciaire);Algérie:Alger;Angola:Luanda;Bénin:Porto-Novo (siège du gouvernement : Cotonou);Botswana:Gaborone;Burkina Faso:Ouagadougou;Burundi:Gitega (capitale économique : Bujumbura);Cap-Vert:Praia;République centrafricaine:Bangui;Comores:Moroni;République du Congo:Brazzaville;République démocratique du Congo:Kinshasa;Côte d’Ivoire:Yamoussoukro (capitale économique : Abidjan);Djibouti:Djibouti;Égypte:Le Caire;Érythrée:Asmara;Eswatini:Mbabane;Éthiopie:Addis-Abeba;Gabon:Libreville;Gambie:Banjul;Ghana:Accra;Guinée:Conakry;Guinée-Bissau:Bissau;Guinée équatoriale:Malabo;Kenya:Nairobi;Lesotho:Maseru;Liberia:Monrovia;Libye:Tripoli;Madagascar:Antananarivo;Malawi:Lilongwe;Mali:Bamako;Maroc:Rabat;Maurice:Port-Louis;Mauritanie:Nouakchott;Mozambique:Maputo;Namibie:Windhoek;Niger:Niamey;Nigeria:Abuja;Ouganda:Kampala;Rwanda:Kigali;Sao Tomé-et-Principe:São Tomé;Sénégal:Dakar;Seychelles:Victoria;Sierra Leone:Freetown;Somalie:Mogadiscio;Soudan:Khartoum;Soudan du Sud:Djouba;Tanzanie:Dodoma;Tchad:N’Djaména;Togo:Lomé;Tunisie:Tunis;Zambie:Lusaka;Zimbabwe:Harare;France:Paris;Allemagne:Berlin;Italie:Rome;Espagne:Madrid;Portugal:Lisbonne;Royaume-Uni:Londres;Belgique:Bruxelles;Suisse:Berne;Pays-Bas:Amsterdam;Russie:Moscou;Chine:Pékin;Japon:Tokyo;Inde:New Delhi;États-Unis:Washington;Canada:Ottawa;Brésil:Brasilia;Argentine:Buenos Aires;Mexique:Mexico;Australie:Canberra;Turquie:Ankara;Arabie saoudite:Riyad;Corée du Sud:Séoul;Grèce:Athènes;Suède:Stockholm;Norvège:Oslo;Pologne:Varsovie;Ukraine:Kiev;Irlande:Dublin;Autriche:Vienne;Haïti:Port-au-Prince;Liban:Beyrouth`.split(';').map(x=>{const i=x.indexOf(':');return[x.slice(0,i),x.slice(i+1)]});
+const CALIAS={'rdc':'République démocratique du Congo','congo kinshasa':'République démocratique du Congo','congo brazzaville':'République du Congo','congo':'République du Congo','centrafrique':'République centrafricaine','usa':'États-Unis','etats unis':'États-Unis','royaume uni':'Royaume-Uni','angleterre':'Royaume-Uni','cote d ivoire':'Côte d’Ivoire','tchad':'Tchad'};
+const REG={'adamaoua':'Ngaoundéré','centre':'Yaoundé','est':'Bertoua','extreme nord':'Maroua','littoral':'Douala','nord':'Garoua','nord ouest':'Bamenda','ouest':'Bafoussam','sud':'Ebolowa','sud ouest':'Buea'};
+const nz=t=>norm(t).replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim();
+function capital(n){
+  if(/chef lieu/.test(n)){
+    const names=Object.keys(REG).sort((a,b)=>b.length-a.length),m=n.match(new RegExp('(?:region|de|du|d|l)\\s+(?:de la |de l |du |d |l |la )?('+names.join('|')+')\\b'));
+    if(m)return `Le chef-lieu de la région ${m[1].replace(/\b\w/g,c=>c.toUpperCase())} (Cameroun) est <b>${REG[m[1]]}</b>.`;
+    return null;
+  }
+  if(!/capitale/.test(n))return null;
+  const h=' '+n+' ',L=[...CAPS.map(([c,k])=>[nz(c),c,k]),...Object.entries(CALIAS).map(([a,c])=>[a,c,(CAPS.find(x=>x[0]===c)||[])[1]])].filter(x=>x[2]).sort((a,b)=>b[0].length-a[0].length);
+  const e=L.find(x=>h.includes(' '+x[0]+' '));
+  return e?`${esc(e[1])} : la capitale est <b>${esc(e[2])}</b>.`:null;
+}
+const KBX=[...KB,...KC].map(([k,a])=>({k:toks(k),a}));
+let _faq=[],_botInit=false;
+function match(qs){
+  const T=toks(qs);if(!T.length)return null;let best=null,bm=0;
+  for(const e of[...KBX,..._faq.map(f=>({k:toks(f.question+' '+(f.keywords||'')),a:esc(f.answer)}))]){
+    const m=T.filter(t=>e.k.some(w=>w===t||(w.length>3&&t.length>3&&(w.startsWith(t)||t.startsWith(w))))).length;
+    if((m>=2||(m===1&&T.length===1))&&m>bm){bm=m;best=e}
+  }
+  return best;
+}
+function addMsg(c,h){const m=$('#em'),d=document.createElement('div');d.className='mb '+c;d.innerHTML=h;m.appendChild(d);m.scrollTop=m.scrollHeight;return d}
+async function botInit(){_botInit=true;if(!db)return;try{_faq=await q(db.from('faq').select('*'));await loadAll()}catch(x){}}
+const fnum=r=>Number(r).toLocaleString('fr-FR',{maximumFractionDigits:6});
+function small(n){
+  if(/^(bonjour|bonsoir|salut|hello|coucou)\b/.test(n)&&n.split(' ').length<=4)return 'Bonjour ! Je suis EFX. Posez-moi une question sur les cours, les abonnements, les projets, ou même de culture générale.';
+  if(/^(merci|je vous remercie|thanks)/.test(n))return 'Avec plaisir ! N’hésitez pas si vous avez une autre question.';
+  if(/\b(au revoir|a bientot|bye|bonne journee|bonne soiree)\b/.test(n))return 'À bientôt sur EFX STUDYPLACE !';
+  if(/(qui es tu|tu es qui|comment t appelles|ton nom|presente toi)/.test(n))return 'Je m’appelle EFX, l’assistant d’EFX STUDYPLACE. Je connais le site, quelques notions de culture générale, et je peux chercher sur Wikipédia.';
+  if(/(que sais tu|que peux tu|tu peux faire|^aide$|^help$|capacites)/.test(n))return 'Je peux : vous guider dans le site (cours, abonnements, projets, culture), chercher un document, calculer (ex. « 15 x 12 », « 20% de 150 »), convertir (« 5 km en m », « 100 euros en fcfa »), donner des capitales, des formules et des définitions, et chercher sur Wikipédia.';
+  if(/(ca va|comment vas tu|comment allez vous)/.test(n))return 'Très bien, merci ! Et vous ? Que puis-je faire pour vous ?';
+  return null;
+}
+function calc(qs){
+  let t=qs.toLowerCase().replace(/combien (font|fait|vaut|est)|calcule[rz]?|calcul|r[ée]sultat de|=|\?/g,' ').trim();
+  let m=t.match(/^(\d+(?:[.,]\d+)?)\s*%\s*de\s*(\d+(?:[.,]\d+)?)$/);
+  if(m)return `${m[1]} % de ${m[2]} = <b>${fnum(+m[1].replace(',','.')*+m[2].replace(',','.')/100)}</b>`;
+  m=t.match(/^racine(?: carr[ée]e)? de (\d+(?:[.,]\d+)?)$/);
+  if(m)return `√${m[1]} = <b>${fnum(Math.sqrt(+m[1].replace(',','.')))}</b>`;
+  t=t.replace(/×/g,'*').replace(/(?<=\d)\s*x\s*(?=\d)/g,'*').replace(/\bfois\b/g,'*').replace(/÷|\bdivis[ée] par\b/g,'/').replace(/\bplus\b/g,'+').replace(/\bmoins\b/g,'-').replace(/\^/g,'**').replace(/,/g,'.');
+  if(!/^[\d\s+\-*/().]+$/.test(t)||!/\d\s*[-+*/]+\s*[\d(]/.test(t)||t.length>80)return null;
+  try{const r=Function('"use strict";return ('+t+')')();if(!isFinite(r))return null;return `${esc(qs.replace(/[?=]/g,'').trim())} = <b>${fnum(r)}</b>`}catch(e){return null}
+}
+const UN={l:{km:1000,kilometre:1000,kilometres:1000,m:1,metre:1,metres:1,cm:.01,centimetre:.01,centimetres:.01,mm:.001,millimetre:.001,millimetres:.001,mile:1609.344,miles:1609.344,pied:.3048,pieds:.3048,pouce:.0254,pouces:.0254},
+ w:{kg:1,kilo:1,kilos:1,kilogramme:1,kilogrammes:1,g:.001,gramme:.001,grammes:.001,t:1000,tonne:1000,tonnes:1000,lb:.45359237,livre:.45359237,livres:.45359237},
+ v:{l:1,litre:1,litres:1,ml:.001,millilitre:.001,millilitres:.001,cl:.01,centilitre:.01,centilitres:.01,gallon:3.785411784,gallons:3.785411784}};
+const TMP={c:'c',celsius:'c',f:'f',fahrenheit:'f',k:'k',kelvin:'k'},EURU=['eur','euro','euros'],XAFU=['fcfa','xaf','cfa','francs','franc'];
+function conv(n){
+  const m=n.match(/(\d+(?: \d+)?(?: \d+)?)\s*(?:degres? )?([a-z0-9]+)\s+(?:en|vers|to)\s+(?:degres? )?([a-z0-9]+)/);
+  if(!m)return null;
+  const v=+m[1].replace(/ /g,''),a=m[2],b=m[3];
+  if(TMP[a]&&TMP[b]){const c=TMP[a]==='c'?v:TMP[a]==='f'?(v-32)*5/9:v-273.15,r=TMP[b]==='c'?c:TMP[b]==='f'?c*9/5+32:c+273.15;return `${fnum(v)} °${TMP[a].toUpperCase()} = <b>${fnum(r)} °${TMP[b].toUpperCase()}</b>`}
+  if(EURU.includes(a)&&XAFU.includes(b))return `${fnum(v)} € = <b>${fnum(v*655.957)} FCFA</b> (parité fixe : 1 € = 655,957 FCFA)`;
+  if(XAFU.includes(a)&&EURU.includes(b))return `${fnum(v)} FCFA = <b>${fnum(v/655.957)} €</b> (parité fixe : 1 € = 655,957 FCFA)`;
+  for(const k of['l','w','v'])if(UN[k][a]&&UN[k][b])return `${fnum(v)} ${a} = <b>${fnum(v*UN[k][a]/UN[k][b])} ${b}</b>`;
+  return null;
+}
+function dateq(n){
+  if(!/(quelle date|quel jour|date d aujourd|jour sommes nous|on est quel jour|quelle heure|heure actuelle|quelle annee)/.test(n))return null;
+  const d=new Date();return `Nous sommes le <b>${d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</b>, il est ${d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})} (heure de votre appareil).`;
+}
+const wikiQ=qs=>{let t=qs.toLowerCase().replace(/[?!.]+/g,' ').trim();
+  t=t.replace(/^(dis[- ]moi\s+)?(qui (est|était|etait|sont)|qu['’]est[- ]ce (que|qu['’])|c['’]est quoi|que (signifie|veut dire)|(donne|donnez)[- ]moi la définition d[eu']?|définition d[eu']?|définis|explique[- ]moi|explique|parle[- ]moi d[eu']?|qu['’]est[- ]ce)\s*/,'');
+  t=t.replace(/^(le|la|les|l['’]|un|une|des|du|de la|de l['’]|d['’]|de)\s*/,'').trim();return t||qs};
+async function wiki(qs){
+  const t=wikiQ(qs);if(t.length<2)return null;
+  const u='https://fr.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch='+encodeURIComponent(t)+'&gsrlimit=1&prop=extracts|info&exintro=1&explaintext=1&exsentences=3&inprop=url&redirects=1&format=json&origin=*';
+  const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),7000);
+  try{
+    const r=await fetch(u,{signal:ctl.signal}),j=await r.json(),p=Object.values(j.query?.pages||{})[0];
+    if(!p||!p.extract)return null;
+    const T=toks(t).filter(w=>w.length>3);
+    if(T.length&&!T.some(w=>norm(p.title+' '+p.extract).includes(w)))return null;
+    return{title:p.title,text:p.extract.trim().slice(0,600),url:/^https:\/\/fr\.wikipedia\.org\//.test(p.fullurl||'')?p.fullurl:''};
+  }catch(e){return null}finally{clearTimeout(to)}
+}
+function siteAnswer(r,qs){
+  const n=r.docs.length+r.cat.length+r.pages.length+r.prj.length+r.svc.length;if(!n)return null;
+  const L=encodeURIComponent(qs);
+  return `Voici ce que j’ai trouvé dans le site :<br>`+[...r.pages.slice(0,2).map(p=>`<a href="#/${p[0]}">${p[1]}</a>`),...r.cat.slice(0,2).map(x=>`${esc(x.t)} (${x.f}, niveau ${x.n})`),...r.docs.slice(0,3).map(c=>esc(c.title)),...r.prj.slice(0,2).map(p=>`<a href="#/projet/${p.id}">${esc(p.title)}</a>`)].join('<br>')+`<br><a href="#/recherche/${L}">Voir tous les résultats</a>`;
+}
+async function ask(qs){
+  addMsg('u',esc(qs));
+  if(!_botInit)await botInit();
+  const n=nz(qs);let a=null,ok_=true,el=null;
+  a=small(n)||calc(qs)||conv(n)||dateq(n)||capital(n);
+  if(!a){const hit=match(qs);if(hit)a=hit.a}
+  if(!a){
+    const know=/^(qui|que|qu|quel|quelle|quels|quelles|quand|ou|pourquoi|combien|c est quoi|definition|definis|explique|parle|dis moi)\b/.test(n),sa=siteAnswer(find(qs),qs);
+    const useWiki=async()=>{el=addMsg('b','Je cherche…');const w=await wiki(qs);return w?`<b>${esc(w.title)}</b><br>${esc(w.text)}${w.url?`<br><a href="${w.url}" target="_blank" rel="noopener">Lire la suite sur Wikipédia</a>`:''}<br><span class="small">Source : Wikipédia</span>`:null};
+    if(know){a=await useWiki()||sa}else{a=sa||await useWiki()}
+  }
+  if(!a){ok_=false;a=`Je n’ai pas encore la réponse à cette question. Je l’ai transmise à l’équipe, qui m’apprendra la réponse. Vous pouvez aussi écrire à <a href="mailto:${CFG.mail}">${CFG.mail}</a>.`}
+  if(el)el.innerHTML=a;else addMsg('b',a);
+  $('#em').scrollTop=$('#em').scrollHeight;
+  if(db)db.from('chat_logs').insert({user_id:user?.id??null,question:qs.slice(0,500),answer:a.replace(/<[^>]+>/g,' ').slice(0,800),matched:ok_}).then(()=>{},()=>{});
+}
+$('#efx-fab').onclick=()=>{
+  const p=$('#efx');p.classList.toggle('open');
+  if(p.classList.contains('open')&&!$('#em').children.length)addMsg('b','Bonjour, je suis <b>EFX</b>, votre assistant. Comment puis-je vous aider ?<div class="chips">'+['Prix des abonnements','Capitale du Cameroun ?','Qu’est-ce que la logistique ?','Combien font 15 x 12 ?'].map(x=>`<button type="button" data-q="${x}">${x}</button>`).join('')+'</div>');
+};
+$('#ex2').onclick=()=>$('#efx').classList.remove('open');
+$('#em').onclick=e=>{const v=e.target.dataset&&e.target.dataset.q;if(v)ask(v)};
+$('#ef').onsubmit=e=>{e.preventDefault();const v=$('#ei').value.trim();if(v){$('#ei').value='';ask(v)}};
 
 // ---------- Démarrage (après la définition de toutes les pages) ----------
 if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
