@@ -85,6 +85,7 @@ legend{font:700 1.05rem Georgia,serif;padding:0 .4rem}
 .an p{white-space:pre-line}
 .cb{position:absolute;top:50%;transform:translateY(-50%);width:2.4rem;height:2.4rem;border-radius:50%;border:0;background:rgba(42,32,18,.65);color:#fff;font-size:1.1rem;cursor:pointer}.cb.l{left:.5rem}.cb.r{right:.5rem}
 .sep{margin:2rem 0 .6rem}
+#lvl .card{max-width:1000px;margin:.8rem auto 0;border:2px solid var(--gold)}
 footer{text-align:center;padding:1.5rem 1rem;border-top:1px solid var(--line);font-size:.9rem}
 @media(prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
@@ -98,6 +99,7 @@ footer{text-align:center;padding:1.5rem 1rem;border-top:1px solid var(--line);fo
   </nav>
   <a id="me" class="me" href="#/compte"></a>
 </header>
+<div id="lvl"></div>
 <main id="app">
   <section class="hero"><img src="MyLogo.jpg" alt="Logo EFX" onerror="this.remove()"><h1>Construire son avenir</h1><p>EFX STUDYPLACE est une plateforme de révision et de remise à niveau : cours PDF, audios, vidéos et images.</p><a class="btn" href="#/cours">Parcourir les cours</a> <a class="btn alt" href="#/abonnement">Voir les abonnements</a></section>
   <noscript><p class="card">JavaScript est désactivé : activez-le ou ouvrez ce fichier dans un navigateur (Chrome, Firefox, Safari) pour utiliser le site.</p></noscript>
@@ -105,13 +107,14 @@ footer{text-align:center;padding:1.5rem 1rem;border-top:1px solid var(--line);fo
 <footer>
   EFX STUDYPLACE · Ambam, Sud-Cameroun · B.P. 01 Ambam<br>
   <a href="mailto:efxscreenm@gmail.com">efxscreenm@gmail.com</a> · 689054370 / 678166542 / 693020377<br>
-  <a href="#/modalites">Modalités d’accès</a> · <a href="#/confidentialite">Conditions et confidentialité</a> · <a href="#/admin-login">Espace administrateur</a>
+  <a href="#/modalites">Modalités d’accès</a> · <a href="#/confidentialite">Conditions et confidentialité</a> · <a href="#/admin-login" class="adm-link" hidden>Espace administrateur</a>
 </footer>
 <button id="efx-fab" aria-label="Discuter avec EFX">💬 EFX</button>
 <div id="efx" role="dialog" aria-label="Assistant EFX"><div class="eh"><span>EFX, votre assistant</span><button id="ex2" aria-label="Fermer" style="background:none;border:0;color:inherit;font-size:1.2rem;cursor:pointer">✕</button></div><div id="em"></div><form id="ef"><input id="ei" placeholder="Posez votre question…" autocomplete="off" required><button class="btn sm">Envoyer</button></form></div>
 <div id="toast" role="status"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.109.0/dist/umd/supabase.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 // ===== Paramètres Supabase (URL du projet et clé publique « publishable ») =====
 const CFG={url:'https://xkipcpnjshjifdbjohkw.supabase.co',key:'sb_publishable_9pEoKYu4UQiNXYX0UAfBkg_D3TZZT5k',mail:'efxscreenm@gmail.com',mtn:'678166542',om:'689054370'};
@@ -120,18 +123,45 @@ let db=null;
 try{if(!CFG.url.includes('VOTRE')&&window.supabase)db=supabase.createClient(CFG.url,CFG.key)}catch(e){console.error(e)}
 const ok=!!db;
 const PLANS=[{id:'mensuel',label:'Mensuel',price:3000},{id:'trimestriel',label:'Trimestriel',price:8500},{id:'semestriel',label:'Semestriel',price:17000},{id:'annuel',label:'Annuel',price:34000}];
-let _dip=null,_sel=null,_pl=[],_svdb=[];
+const PLANS_ELEVE=[{id:'eleve-mensuel',label:'Mensuel',price:1000},{id:'eleve-trimestriel',label:'Trimestriel',price:2500},{id:'eleve-semestriel',label:'Semestriel',price:5000},{id:'eleve-annuel',label:'Annuel',price:11000}];
+const ALLPLANS=[...PLANS,...PLANS_ELEVE];
+const isPupil=()=>profile?.statut==='eleve'&&!admin;
+const myPlans=()=>profile?.statut==='eleve'?PLANS_ELEVE:PLANS;
+const PSEUDO='eleves.efxstudyplace.com';
+const CLASSES={lycee:['6e','5e','4e','3e','2nde','1ère','Terminale'],primaire:['SIL','CP','CE1','CE2','CM1','CM2']};
+const digits=t=>String(t||'').replace(/\D/g,'').replace(/^237(?=\d{9}$)/,'');
+const pseudo=t=>digits(t)+'@'+PSEUDO;
+const pseudoAlt=t=>'efxscreenm+e'+digits(t)+'@gmail.com'; // secours si Supabase refuse le premier domaine
+const devAdmin=()=>{try{return localStorage.getItem('efx_admin_dev')==='1'}catch(x){return false}};
+// Visibilité d'un contenu selon le statut, la classe ou le niveau (les fichiers « publics » sont visibles par tous)
+const canSee=c=>{
+  if(admin)return true;
+  const a=c.audience||'tous';if(c.is_public||a==='tous')return true;
+  if(!profile||profile.statut!==a)return false;
+  const cl=String(c.classe||'').split(',').map(x=>x.trim()).filter(Boolean);
+  return !cl.length||cl.includes(a==='eleve'?profile.classe:'N'+profile.niveau);
+};
+// Téléchargement des cours : réservé au niveau et à la filière de l'étudiant (les autres cours restent consultables)
+const canDl=c=>{
+  if(admin)return true;
+  if((c.section||'cours')!=='cours'||!c.filiere||!c.niveau)return true;
+  return !!profile&&profile.statut==='etudiant'&&+profile.niveau===+c.niveau&&profile.filiere===c.filiere;
+};
+const dlBtn=c=>canDl(c)?`<button class="btn sm alt" onclick="dlFile(${c.id})">Télécharger</button>`:'<span class="small">Téléchargement réservé à votre niveau et à votre filière</span>';
+let _myPays=[],_myApps=[],_admPays=[],_dip=null,_sel=null,_pl=[],_svdb=[],_lvlReq=null,_susp=false,_uid=null;
 const isApp=()=>matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
 window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();_dip=e;nav();if(location.hash==='#/application')R.application()});
 window.addEventListener('appinstalled',()=>{_dip=null;nav();if(location.hash==='#/application')R.application()});
 let user=null,admin=false,sub=null,profile=null,_c=[],_apps=[],_idx={};
-const CAT=[[["TTL"],1,[["UE11","111","E.P.S 1"],["UE11","112","ANGLAIS 1"],["UE11","113","FRANÇAIS 1"],["UE11","114","DROIT 1"],["UE12","121","INFORMATIQUE 1"],["UE12","122","PROB.STAT.DESC"],["UE12","123","PHYSIQUES 1"],["UE13","131","INTRO.LOGISTIQUE"],["UE13","132","ECÔ.GENERALE"],["UE13","133","GEST.COMPTABLE"]]],[["TTL"],2,[["UE21","211","STAT.INFER"],["UE21","212","INFORMATIQUE 2"],["UE21","213","PHYSIQUES 2"],["UE21","214","MATHEMATIQUES 1"],["UE22","221","INTRO.SUPPLY.CHAIN"],["UE22","222","GÉO.FLUX"],["UE22","223","BASE.OPTIM.SIMU"],["UE22","224","MODES.TRANSPORTS"],["UE23","231","T.PRATIQUES 1"],["UE23","232","THERMOCHIMIE"]]],[["GLTCO"],1,[["UE11","111","E.P.S 1"],["UE11","112","ANGLAIS 1"],["UE11","113","FRANÇAIS 1"],["UE11","114","DROIT 1"],["UE12","121","INFORMATIQUE 1"],["UE12","122","PROB.STAT.DESC"],["UE12","123","PHYSIQUES 1"],["UE13","131","INTRO.LOGISTIQUE"],["UE13","132","ECÔ.GENERALE"],["UE13","133","GEST.COMPTABLE"]]],[["GLTCO"],2,[["UE21","211","STAT.INFER"],["UE21","212","INFORMATIQUE 2"],["UE21","213","PHYSIQUES 2"],["UE21","214","MATHEMATIQUES 1"],["UE22","221","INTRO.SUPPLY.CHAIN"],["UE22","222","GÉO.FLUX"],["UE22","223","BASE.OPTIM.SIMU"],["UE22","224","MODES.TRANSPORTS"],["UE23","231","T.PRATIQUES 1"],["UE23","232","THERMOCHIMIE"]]],[["TTL"],3,[["UE31","311","STAGE.OUVRIER"],["UE31","312","E.P.S 2"],["UE31","313","ANGLAIS 2"],["UE31","314","FRANÇAIS 2"],["UE31","315","DROIT2"],["UE32","321","INFORMATIQUE 3"],["UE32","322","PHYSIQUES 3"],["UE32","323","MATHEMATIQUES 2"],["UE33","331","MARK.TRANSP"],["UE33","332","GEST.ENT.COND"],["UE33","333","T.PRATIQUES 2"]]],[["TTL"],4,[["UE41","411","SYST.LOGISTIQUE"],["UE41","412","LOGISTIQUE.IN'L"],["UE41","413","GEST.PROD.PRODUC"],["UE41","414","GEST.STOCK.APPRO"],["UE42","421","INFORMATIQUE 4"],["UE42","422","MATHEMATIQUES 3"],["UE42","423","INTRO À LA R.O"],["UE42","424","PHYSIQUE 4"],["UE43","431","ETHIQUE.PRO"],["UE43","432","T.PRATIQUES 3"]]],[["GLTCO"],3,[["UE31","311","STAGE.OUVRIER"],["UE31","312","E.P.S 2"],["UE31","313","ANGLAIS 2"],["UE31","314","FRANÇAIS 2"],["UE31","315","DROIT2"],["UE32","321","INFORMATIQUE 3"],["UE32","322","PHYSIQUES 3"],["UE32","323","MATHEMATIQUES 2"],["UE33","331","MARK.TRANSP"],["UE33","332","GEST.ENT.COND"],["UE33","333","T.PRATIQUES 2"]]],[["GLTCO"],4,[["UE41","411","SYST.LOGISTIQUE"],["UE41","412","LOGISTIQUE.IN'L"],["UE41","413","GEST.PROD.PRODUC"],["UE41","414","GEST.STOCK.APPRO"],["UE42","421","INFORMATIQUE 4"],["UE42","422","MATHEMATIQUES 3"],["UE42","423","INTRO À LA R.O"],["UE42","424","PHYSIQUE 4"],["UE43","431","ETHIQUE.PRO"],["UE43","432","T.PRATIQUES 3"]]],[["AMA","GSI","TCT","GDT","GCIM","MFT","MLS"],5,[["UE51","511","E.P.S 1"],["UE51","512","ANGLAIS 1"],["UE51","513","FRANÇAIS 1"],["UE51","514","DROIT 1"],["UE52","521","INFORMATIQUE 1"],["UE52","522","PROB.STAT.DESC"],["UE52","523","PHYSIQUES 1"],["UE53","531","INTRO.LOGISTIQUE"],["UE53","532","ECÔ.GENERALE"],["UE53","533","GEST.COMPTABLE"]]],[["AMA","GSI","TCT","GDT","GCIM","MFT","MLS"],6,[["UE61","611","STAT.INFER"],["UE61","612","INFORMATIQUE 2"],["UE61","613","PHYSIQUES 2"],["UE61","614","MATHEMATIQUES 1"],["UE62","621","INTRO.SUPPLY.CHAIN"],["UE62","622","GÉO.FLUX"],["UE62","623","BASE.OPTIM.SIMU"],["UE62","624","MODES.TRANSPORTS"],["UE63","631","T.PRATIQUES 1"],["UE63","632","THERMOCHIMIE"]]],[["AMA","GSI","TCT","GDT","GCIM","MFT","MLS"],7,[["UE71","711","E.P.S 1"],["UE71","712","ANGLAIS 1"],["UE71","713","FRANÇAIS 1"],["UE71","714","DROIT 1"],["UE72","721","INFORMATIQUE 1"],["UE72","722","PROB.STAT.DESC"],["UE72","723","PHYSIQUES 1"],["UE73","731","INTRO.LOGISTIQUE"],["UE73","732","ECÔ.GENERALE"],["UE73","733","GEST.COMPTABLE"]]],[["AMA","GSI","TCT","GDT","GCIM","MFT","MLS"],8,[["UE81","811","STAT.INFER"],["UE81","812","INFORMATIQUE 2"],["UE81","813","PHYSIQUES 2"],["UE81","814","MATHEMATIQUES 1"],["UE82","821","INTRO.SUPPLY.CHAIN"],["UE82","822","GÉO.FLUX"],["UE82","823","BASE.OPTIM.SIMU"],["UE82","824","MODES.TRANSPORTS"],["UE83","831","T.PRATIQUES 1"],["UE83","832","THERMOCHIMIE"]]],[["AMA","GSI","TCT","GDT","GCIM","MFT","MLS"],9,[["UE91","911","E.P.S 1"],["UE91","912","ANGLAIS 1"],["UE91","913","FRANÇAIS 1"],["UE91","914","DROIT 1"],["UE92","921","INFORMATIQUE 1"],["UE92","922","PROB.STAT.DESC"],["UE92","923","PHYSIQUES 1"],["UE93","931","INTRO.LOGISTIQUE"],["UE93","932","ECÔ.GENERALE"],["UE93","933","GEST.COMPTABLE"]]],[["AMA","GSI","TCT","GDT","GCIM","MFT","MLS"],10,[["UE101","1011","STAT.INFER"],["UE101","1012","INFORMATIQUE 2"],["UE101","1013","PHYSIQUES 2"],["UE101","1014","MATHEMATIQUES 1"],["UE102","1021","INTRO.SUPPLY.CHAIN"],["UE102","1022","GÉO.FLUX"],["UE102","1023","BASE.OPTIM.SIMU"],["UE102","1024","MODES.TRANSPORTS"],["UE103","1031","T.PRATIQUES 1"],["UE103","1032","THERMOCHIMIE"]]]];
+const CAT0=[[["TTL"],1,[["UE11","111","E.P.S 1"],["UE11","112","ANGLAIS 1"],["UE11","113","FRANÇAIS 1"],["UE11","114","DROIT 1"],["UE12","121","INFORMATIQUE 1"],["UE12","122","PROB.STAT.DESC"],["UE12","123","PHYSIQUES 1"],["UE13","131","INTRO.LOGISTIQUE"],["UE13","132","ECÔ.GENERALE"],["UE13","133","GEST.COMPTABLE"]]],[["TTL"],2,[["UE21","211","STAT.INFER"],["UE21","212","INFORMATIQUE 2"],["UE21","213","PHYSIQUES 2"],["UE21","214","MATHEMATIQUES 1"],["UE22","221","INTRO.SUPPLY.CHAIN"],["UE22","222","GÉO.FLUX"],["UE22","223","BASE.OPTIM.SIMU"],["UE22","224","MODES.TRANSPORTS"],["UE23","231","T.PRATIQUES 1"],["UE23","232","THERMOCHIMIE"]]],[["GLTCO"],1,[["UE11","111","E.P.S 1"],["UE11","112","ANGLAIS 1"],["UE11","113","FRANÇAIS 1"],["UE11","114","DROIT 1"],["UE12","121","INFORMATIQUE 1"],["UE12","122","PROB.STAT.DESC"],["UE12","123","PHYSIQUES 1"],["UE13","131","INTRO.LOGISTIQUE"],["UE13","132","ECÔ.GENERALE"],["UE13","133","GEST.COMPTABLE"]]],[["GLTCO"],2,[["UE21","211","STAT.INFER"],["UE21","212","INFORMATIQUE 2"],["UE21","213","PHYSIQUES 2"],["UE21","214","MATHEMATIQUES 1"],["UE22","221","INTRO.SUPPLY.CHAIN"],["UE22","222","GÉO.FLUX"],["UE22","223","BASE.OPTIM.SIMU"],["UE22","224","MODES.TRANSPORTS"],["UE23","231","T.PRATIQUES 1"],["UE23","232","THERMOCHIMIE"]]],[["TTL"],3,[["UE31","311","STAGE.OUVRIER"],["UE31","312","E.P.S 2"],["UE31","313","ANGLAIS 2"],["UE31","314","FRANÇAIS 2"],["UE31","315","DROIT2"],["UE32","321","INFORMATIQUE 3"],["UE32","322","PHYSIQUES 3"],["UE32","323","MATHEMATIQUES 2"],["UE33","331","MARK.TRANSP"],["UE33","332","GEST.ENT.COND"],["UE33","333","T.PRATIQUES 2"]]],[["TTL"],4,[["UE41","411","SYST.LOGISTIQUE"],["UE41","412","LOGISTIQUE.IN'L"],["UE41","413","GEST.PROD.PRODUC"],["UE41","414","GEST.STOCK.APPRO"],["UE42","421","INFORMATIQUE 4"],["UE42","422","MATHEMATIQUES 3"],["UE42","423","INTRO À LA R.O"],["UE42","424","PHYSIQUE 4"],["UE43","431","ETHIQUE.PRO"],["UE43","432","T.PRATIQUES 3"]]],[["GLTCO"],3,[["UE31","311","STAGE.OUVRIER"],["UE31","312","E.P.S 2"],["UE31","313","ANGLAIS 2"],["UE31","314","FRANÇAIS 2"],["UE31","315","DROIT2"],["UE32","321","INFORMATIQUE 3"],["UE32","322","PHYSIQUES 3"],["UE32","323","MATHEMATIQUES 2"],["UE33","331","MARK.TRANSP"],["UE33","332","GEST.ENT.COND"],["UE33","333","T.PRATIQUES 2"]]],[["GLTCO"],4,[["UE41","411","SYST.LOGISTIQUE"],["UE41","412","LOGISTIQUE.IN'L"],["UE41","413","GEST.PROD.PRODUC"],["UE41","414","GEST.STOCK.APPRO"],["UE42","421","INFORMATIQUE 4"],["UE42","422","MATHEMATIQUES 3"],["UE42","423","INTRO À LA R.O"],["UE42","424","PHYSIQUE 4"],["UE43","431","ETHIQUE.PRO"],["UE43","432","T.PRATIQUES 3"]]],[["AMA","GSI","TCT","GDT","GCIM","MFT","MLS"],5,[["UE51","511","E.P.S 1"],["UE51","512","ANGLAIS 1"],["UE51","513","FRANÇAIS 1"],["UE51","514","DROIT 1"],["UE52","521","INFORMATIQUE 1"],["UE52","522","PROB.STAT.DESC"],["UE52","523","PHYSIQUES 1"],["UE53","531","INTRO.LOGISTIQUE"],["UE53","532","ECÔ.GENERALE"],["UE53","533","GEST.COMPTABLE"]]],[["AMA","GSI","TCT","GDT","GCIM","MFT","MLS"],6,[["UE61","611","STAT.INFER"],["UE61","612","INFORMATIQUE 2"],["UE61","613","PHYSIQUES 2"],["UE61","614","MATHEMATIQUES 1"],["UE62","621","INTRO.SUPPLY.CHAIN"],["UE62","622","GÉO.FLUX"],["UE62","623","BASE.OPTIM.SIMU"],["UE62","624","MODES.TRANSPORTS"],["UE63","631","T.PRATIQUES 1"],["UE63","632","THERMOCHIMIE"]]],[["AMA","GSI","TCT","GDT","GCIM","MFT","MLS"],7,[["UE71","711","E.P.S 1"],["UE71","712","ANGLAIS 1"],["UE71","713","FRANÇAIS 1"],["UE71","714","DROIT 1"],["UE72","721","INFORMATIQUE 1"],["UE72","722","PROB.STAT.DESC"],["UE72","723","PHYSIQUES 1"],["UE73","731","INTRO.LOGISTIQUE"],["UE73","732","ECÔ.GENERALE"],["UE73","733","GEST.COMPTABLE"]]],[["AMA","GSI","TCT","GDT","GCIM","MFT","MLS"],8,[["UE81","811","STAT.INFER"],["UE81","812","INFORMATIQUE 2"],["UE81","813","PHYSIQUES 2"],["UE81","814","MATHEMATIQUES 1"],["UE82","821","INTRO.SUPPLY.CHAIN"],["UE82","822","GÉO.FLUX"],["UE82","823","BASE.OPTIM.SIMU"],["UE82","824","MODES.TRANSPORTS"],["UE83","831","T.PRATIQUES 1"],["UE83","832","THERMOCHIMIE"]]],[["AMA","GSI","TCT","GDT","GCIM","MFT","MLS"],9,[["UE91","911","E.P.S 1"],["UE91","912","ANGLAIS 1"],["UE91","913","FRANÇAIS 1"],["UE91","914","DROIT 1"],["UE92","921","INFORMATIQUE 1"],["UE92","922","PROB.STAT.DESC"],["UE92","923","PHYSIQUES 1"],["UE93","931","INTRO.LOGISTIQUE"],["UE93","932","ECÔ.GENERALE"],["UE93","933","GEST.COMPTABLE"]]],[["AMA","GSI","TCT","GDT","GCIM","MFT","MLS"],10,[["UE101","1011","STAT.INFER"],["UE101","1012","INFORMATIQUE 2"],["UE101","1013","PHYSIQUES 2"],["UE101","1014","MATHEMATIQUES 1"],["UE102","1021","INTRO.SUPPLY.CHAIN"],["UE102","1022","GÉO.FLUX"],["UE102","1023","BASE.OPTIM.SIMU"],["UE102","1024","MODES.TRANSPORTS"],["UE103","1031","T.PRATIQUES 1"],["UE103","1032","THERMOCHIMIE"]]]];
 const CAM={'Adamaoua':['Djérem','Faro-et-Déo','Mayo-Banyo','Mbéré','Vina'],'Centre':['Haute-Sanaga','Lekié','Mbam-et-Inoubou','Mbam-et-Kim','Méfou-et-Afamba','Méfou-et-Akono','Mfoundi','Nyong-et-Kéllé','Nyong-et-Mfoumou','Nyong-et-So’o'],'Est':['Boumba-et-Ngoko','Haut-Nyong','Kadey','Lom-et-Djérem'],'Extrême-Nord':['Diamaré','Logone-et-Chari','Mayo-Danay','Mayo-Kani','Mayo-Sava','Mayo-Tsanaga'],'Littoral':['Moungo','Nkam','Sanaga-Maritime','Wouri'],'Nord':['Bénoué','Faro','Mayo-Louti','Mayo-Rey'],'Nord-Ouest':['Boyo','Bui','Donga-Mantung','Menchum','Mezam','Momo','Ngoketunjia'],'Ouest':['Bamboutos','Haut-Nkam','Hauts-Plateaux','Koung-Khi','Menoua','Mifi','Ndé','Noun'],'Sud':['Dja-et-Lobo','Mvila','Océan','Vallée-du-Ntem'],'Sud-Ouest':['Fako','Koupé-Manengouba','Lebialem','Manyu','Meme','Ndian']};
 const PAYS='Cameroun,Afrique du Sud,Algérie,Angola,Bénin,Botswana,Burkina Faso,Burundi,Cap-Vert,République centrafricaine,Comores,Côte d’Ivoire,Djibouti,Égypte,Érythrée,Eswatini,Éthiopie,Gabon,Gambie,Ghana,Guinée,Guinée-Bissau,Guinée équatoriale,Kenya,Lesotho,Liberia,Libye,Madagascar,Malawi,Mali,Maroc,Maurice,Mauritanie,Mozambique,Namibie,Niger,Nigeria,Rwanda,République du Congo,République démocratique du Congo,Sao Tomé-et-Principe,Sénégal,Seychelles,Sierra Leone,Somalie,Soudan,Soudan du Sud,Tanzanie,Tchad,Togo,Tunisie,Ouganda,Zambie,Zimbabwe'.split(',');
-const YEARS=[];for(let y=(new Date().getMonth()>=8?new Date().getFullYear():new Date().getFullYear()-1);y>=2023;y--)YEARS.push(y+'-'+(y+1));
+const YEARS=[];for(let y=(new Date().getMonth()>=7?new Date().getFullYear():new Date().getFullYear()-1);y>=2023;y--)YEARS.push(y+'-'+(y+1));
 let _yr=YEARS[0];
 const ysel=()=>`<label>Année académique<select id="cy">${YEARS.map(y=>`<option ${y===_yr?'selected':''}>${y}</option>`).join('')}</select></label>`;
-const ECS=new Set(CAT.flatMap(([fs,s,rows])=>fs.flatMap(f=>rows.map(r=>'EC'+f+r[1]))));
+let CAT=CAT0;
+const mkECS=()=>new Set(CAT.flatMap(([fs,s,rows])=>fs.flatMap(f=>rows.map(r=>'EC'+f+r[1]))));
+let ECS=mkECS(),_catOK=false,_cn=1,_cf='TTL',_users=[];
 const SV=[['Bureautique',['Impressions et photocopies de documents','Rédaction et mise en forme : mémoires, exposés, rapports de stage, rapports de travaux pratiques, demandes d’emploi ou de stage, CV…','Reliure et conception de cahiers et documents personnalisés','Inscriptions et préinscriptions en ligne (concours, universités…)']],['Infographie',['Conception d’affiches','Billets d’invitation','Cartes de visite','Spots et affiches publicitaires']],['Programmation',['Programmation et design web (JavaScript, HTML, CSS et frameworks)','Programmation C et Python']],['Éducation',['Prépas concours 2026-2027','Cours de répétition (secondaire, 1re et 2e année du supérieur)']],['Pâtisserie et restauration',['Pancakes, gâteaux d’anniversaire, beignets, biscuits…','Plats spéciaux et plats traditionnels','Buffets de cérémonie']],['Télécom et réseaux',['Services d’identification (Orange et MTN)','Orange Money et MTN Mobile Money']],['Autres services',['Achats et paiements en ligne','Paiements internationaux (Cameroun - étranger)']]];
 
 const $=s=>document.querySelector(s);
@@ -140,7 +170,7 @@ const fmt=n=>Number(n).toLocaleString('fr-FR')+' FCFA';
 const dt=d=>new Date(d).toLocaleDateString('fr-FR');
 const q=async p=>(await p).data||[];
 const set=h=>{$('#app').innerHTML=h};
-const toast=(m,e)=>{const t=$('#toast');t.textContent=m;t.className='show'+(e?' err':'');clearTimeout(t._t);t._t=setTimeout(()=>t.className='',3800)};
+const toast=(m,e,ms)=>{const t=$('#toast');t.textContent=m;t.className='show'+(e?' err':'');clearTimeout(t._t);t._t=setTimeout(()=>t.className='',ms||3800)};
 const need=()=>{if(ok)return false;set('<div class="card"><h2>Configuration requise</h2><p>La base de données n’est pas connectée : renseignez l’URL et la clé Supabase au début du script de index.html (après avoir exécuté schema.sql), et vérifiez votre connexion internet.</p></div>');return true};
 const tbl=(r,c,act)=>`<div class="tw"><table><tr>${c.map(x=>`<th>${x}</th>`).join('')}${act?'<th>Action</th>':''}</tr>${r.map(x=>`<tr>${c.map(k=>`<td>${esc(/_at$/.test(k)?(x[k]?dt(x[k]):''):x[k])}</td>`).join('')}${act?`<td>${act(x)}</td>`:''}</tr>`).join('')||'<tr><td>Aucune donnée.</td></tr>'}</table></div>`;
 const planCard=p=>`<div class="card plan"><h3>${p.label}</h3><div class="price">${fmt(p.price)}</div><a class="btn" href="#/abonnement/${p.id}">Choisir cette formule</a></div>`;
@@ -148,19 +178,40 @@ const R={};
 
 // ---------- Navigation ----------
 function nav(){
-  const L=[['accueil','Accueil'],['cours','Cours'],['culture','Culture'],['projets','Projets'],['services','Produits et services'],['abonnement','Abonnement'],['candidature','Candidature'],['recherche','Rechercher'],['apropos','À propos'],['contact','Contact']];
+  let L=[['accueil','Accueil'],['cours','Cours'],['culture','Culture'],['projets','Projets'],['services','Produits et services'],['abonnement','Abonnement'],['candidature','Candidature'],['recherche','Rechercher'],['apropos','À propos'],['contact','Contact']];
   if(admin)L.push(['admin','Tableau de bord']);
   if(user&&(sub||admin)&&!isApp())L.push(['application','Télécharger l’application']);
   L.push(user?['compte','Mon compte']:['connexion','Se connecter']);
+  if(isPupil())L=L.filter(x=>x[0]!=='cours');
   const cur=(location.hash.slice(2)||'accueil').split('/')[0];
   $('#nav').innerHTML=L.map(([h,t])=>`<a href="#/${h}" class="${h===cur?'on':''}">${t}</a>`).join('');
-  drawMe();
+  drawMe();drawLvl();
 }
 $('#burger').onclick=()=>$('#nav').classList.toggle('open');
 function route(){
   const[p,a]=(location.hash.slice(2)||'accueil').split('/');
   $('#nav').classList.remove('open');nav();
+  if(p==='cours'&&isPupil()){set('<div class="card narrow"><h2>Cours</h2><p>La page Cours est réservée aux étudiants. Retrouvez vos contenus dans <a href="#/culture">Culture</a>, <a href="#/services">Produits et services</a> et <a href="#/candidature">Candidature</a> (cours de répétition de votre classe).</p></div>');scrollTo(0,0);return}
   (R[p]||R.accueil)(a);scrollTo(0,0);
+}
+const yrStart=y=>+String(y||'').slice(0,4);
+const lvlDue=()=>!!(profile&&profile.niveau&&profile.niveau<5&&profile.level_year&&yrStart(profile.level_year)<yrStart(YEARS[0]));
+const filsFor=n=>[...new Set(CAT.filter(c=>Math.ceil(c[1]/2)===+n).flatMap(c=>c[0]))];
+async function loadCatalog(force){
+  if(!db||(_catOK&&!force))return;
+  const rows=await q(db.from('catalog').select('*').order('semestre').order('ue').order('code'));
+  _catOK=true;
+  if(!rows.length){CAT=CAT0;ECS=mkECS();return}
+  const g=new Map();
+  rows.forEach(r=>{const k=r.filiere+'|'+r.semestre;if(!g.has(k))g.set(k,[[r.filiere],r.semestre,[]]);g.get(k)[2].push([r.ue,r.code,r.title,r.id])});
+  CAT=[...g.values()].sort((a,b)=>a[1]-b[1]);ECS=mkECS();
+}
+function drawLvl(){
+  const el=$('#lvl');if(!el)return;
+  if(!user||!profile||profile.statut==='eleve'||!lvlDue()||location.hash.startsWith('#/compte')){el.innerHTML='';return}
+  el.innerHTML=_lvlReq&&_lvlReq.status==='pending'
+    ?'<div class="card">Votre demande de passage au niveau supérieur est en attente de validation.</div>'
+    :`<div class="card"><b>L’année académique ${esc(profile.level_year)} est terminée.</b> Passez-vous au niveau ${profile.niveau+1} ? <a class="btn sm" href="#/compte">Faire ma demande</a></div>`;
 }
 const avUrl=p=>p&&db?db.storage.from('avatars').getPublicUrl(p).data.publicUrl:'';
 function drawMe(){
@@ -186,8 +237,11 @@ async function setUser(u){
   user=u||null;admin=false;sub=null;profile=null;
   if(user){
     admin=!!(await db.from('admins').select('user_id').eq('user_id',user.id).maybeSingle()).data;
+    if(admin)try{localStorage.setItem('efx_admin_dev','1')}catch(x){}
     sub=(await q(db.from('subscriptions').select('*').eq('user_id',user.id).gt('ends_at',new Date().toISOString()).order('ends_at',{ascending:false}).limit(1)))[0]||null;
     await loadProfile();
+    if(profile?.is_suspended&&!admin){_susp=true;toast('Votre compte est suspendu temporairement',1,8000);user=null;profile=null;sub=null;await db.auth.signOut();return}
+    _lvlReq=(await q(db.from('level_requests').select('*').eq('user_id',user.id).order('id',{ascending:false}).limit(1)))[0]||null;
     try{const pk='efx_av_'+(user.email||'').toLowerCase(),d=localStorage.getItem(pk);
       if(d){localStorage.removeItem(pk);if(!profile?.avatar_path)await saveAvatar(await (await fetch(d)).blob())}}catch(x){console.error(x)}
   }
@@ -214,7 +268,7 @@ R.accueil=async()=>{set(`<div class="cw"><div class="car" id="car"><div class="s
 <form class="row" onsubmit="event.preventDefault();location.hash='#/recherche/'+encodeURIComponent(this.q.value)"><input name="q" type="search" placeholder="Rechercher un cours, une année, un document…" required aria-label="Rechercher"><button class="btn">Rechercher</button></form>
 <section class="hero"><h1>Construire son avenir</h1><p>EFX STUDYPLACE est une plateforme numérique de révision, d’études et d’approfondissement. Elle vise la remise à niveau de tous les étudiants : documents, images, audios et vidéos pour comprendre et assimiler les cours manqués ou mal compris.</p><a class="btn" href="#/cours">Parcourir les cours</a> <a class="btn alt" href="#/abonnement">Voir les abonnements</a></section>
 <div class="grid sep"><div class="card"><h3>Vous avez déjà un compte ?</h3><p>Retrouvez vos cours et votre abonnement.</p><a class="btn" href="#/connexion">Se connecter</a></div><div class="card"><h3>Nouveau sur la plateforme ?</h3><p>Créez un compte en une minute. En vous inscrivant, vous acceptez nos <a href="#/confidentialite">conditions d’utilisation et notre politique de confidentialité</a>.</p><a class="btn" href="#/connexion">S’inscrire</a></div><div class="card"><h3>Concours et répétitions</h3><p>Postulez à l’ESTLC ou inscrivez-vous aux cours de répétition.</p><a class="btn" href="#/candidature">Déposer ma candidature</a></div></div>
-<h2>Nos formules d’abonnement</h2><div class="grid">${PLANS.map(planCard).join('')}</div>
+${!isPupil()?`<h2>Abonnements étudiants</h2><div class="grid">${PLANS.map(planCard).join('')}</div>`:''}${!user||admin||isPupil()?`<h2 class="sep">Abonnements élèves</h2><div class="grid">${PLANS_ELEVE.map(planCard).join('')}</div>`:''}
 <h2 class="sep">Nous trouver</h2><div class="card"><p><b>Adresse :</b> Ambam, Ebolowa, Sud-Cameroun · B.P. 01 Ambam<br><b>E-mail :</b> <a href="mailto:${CFG.mail}">${CFG.mail}</a><br><b>Téléphone :</b> (+237) 689054370 / 678166542 / 693020377</p><a class="btn alt sm" href="#/contact">Nous écrire</a></div>`);
   if(!db)return;
   const[sl,an]=await Promise.all([q(db.from('slides').select('*').eq('is_active',true).order('sort_order').order('id')),q(db.from('announcements').select('*').eq('is_active',true).order('is_pinned',{ascending:false}).order('created_at',{ascending:false}).limit(8))]);
@@ -229,14 +283,15 @@ R.accueil=async()=>{set(`<div class="cw"><div class="car" id="car"><div class="s
 function catHtml(f,n){
   return CAT.filter(([fs,s])=>Math.ceil(s/2)===n&&fs.includes(f)).map(([fs,s,rows])=>{
     const g=[];rows.forEach(r=>{const l=g[g.length-1];l&&l[0]===r[0]?l[1].push(r):g.push([r[0],[r]])});
-    return `<h3>Semestre ${ROM[s]}</h3><div class="tw"><table><tr><th>UE</th><th>EC</th><th>Intitulé</th><th>PDF</th></tr>${g.map(([ue,rs])=>rs.map((r,i)=>{const m=_idx[_yr+'|EC'+f+r[1]];return `<tr>${i?'':`<td rowspan="${rs.length}">${ue}</td>`}<td>EC${f}${r[1]}</td>${m?`<td>${esc(r[2])} <span class="tag">${m.is_premium?'abonnés':'gratuit'}</span></td><td><button class="btn sm" onclick="openFile(${m.id})">Ouvrir</button> <button class="btn sm alt" onclick="dlFile(${m.id})">Télécharger</button></td>`:`<td>${esc(r[2])}</td><td class="small">Bientôt disponible</td>`}</tr>`}).join('')).join('')}</table></div>`}).join('')||'<p>Aucun cours pour cette sélection.</p>';
+    return `<h3>Semestre ${ROM[s]}</h3><div class="tw"><table><tr><th>UE</th><th>EC</th><th>Intitulé</th><th>PDF</th></tr>${g.map(([ue,rs])=>rs.map((r,i)=>{const m=_idx[_yr+'|EC'+f+r[1]];return `<tr>${i?'':`<td rowspan="${rs.length}">${ue}</td>`}<td>EC${f}${r[1]}</td>${m?`<td>${esc(r[2])} <span class="tag">${m.is_premium?'abonnés':'gratuit'}</span></td><td><button class="btn sm" onclick="openFile(${m.id})">Ouvrir</button> ${dlBtn(m)}</td>`:`<td>${esc(r[2])}</td><td class="small">Bientôt disponible</td>`}</tr>`}).join('')).join('')}</table></div>`}).join('')||'<p>Aucun cours pour cette sélection.</p>';
 }
 R.cours=async(tab='pdf')=>{
   const K={pdf:'Cours PDF',doc:'Documents',audio:'Audios',video:'Vidéos',image:'Images'};
-  const inTab=c=>c.section!=='culture'&&(!c.annee_academique||c.annee_academique===_yr)&&(tab==='doc'?['word','excel','powerpoint','autre'].includes(c.kind):c.kind===tab&&!(tab==='pdf'&&ECS.has(c.ue_code)));
+  const inTab=c=>(c.section||'cours')==='cours'&&canSee(c)&&(!c.annee_academique||c.annee_academique===_yr)&&!ECS.has(c.ue_code)&&(tab==='doc'?['word','excel','powerpoint','autre'].includes(c.kind):c.kind===tab);
   if(!K[tab])tab='pdf';
+  await loadCatalog();
   _c=db?await q(db.from('contents').select('*').order('created_at',{ascending:false})):[];
-  _idx={};_c.forEach(c=>{if(c.kind==='pdf'&&ECS.has(c.ue_code)&&c.annee_academique)_idx[c.annee_academique+'|'+c.ue_code]=c});
+  _idx={};_c.forEach(c=>{if(ECS.has(c.ue_code)&&c.annee_academique)_idx[c.annee_academique+'|'+c.ue_code]=c});
   const tabs=`<div class="tabs">${Object.entries(K).map(([k,t])=>`<a class="btn sm ${k===tab?'':'alt'}" href="#/cours/${k}">${t}</a>`).join('')}</div>`;
   const cards=()=>{$('#list').innerHTML=_c.filter(inTab).map(contentCard).join('')||`<p>Aucun contenu de ce type pour le moment.${db?'':' La connexion à la base de données n’est pas configurée.'}</p>`};
   if(tab!=='pdf'){set(`<h2>${K[tab]}</h2>${tabs}<div class="row">${ysel()}</div><div id="list" class="grid"></div>`);$('#cy').onchange=()=>{_yr=$('#cy').value;cards()};return cards()}
@@ -255,9 +310,9 @@ async function getUrl(id,dl){
   if(r.error){toast('Accès refusé : abonnement requis',1);return null}
   return r.data.signedUrl;
 }
-async function openFile(id){const u=await getUrl(id,false);if(u)window.open(u,'_blank','noopener')}
-async function dlFile(id){const u=await getUrl(id,true);if(u){const a=document.createElement('a');a.href=u;a.download='';a.rel='noopener';document.body.appendChild(a);a.click();a.remove()}}
-const contentCard=c=>`<div class="card"><span class="tag">${esc([c.category||c.kind,c.is_premium?'abonnés':'gratuit'].join(' · '))}</span><h3>${esc(c.title)}</h3><p class="small">${esc([c.annee_academique,c.filiere,c.niveau&&'Niveau '+c.niveau,c.semestre,c.ue_code].filter(Boolean).join(' · '))}</p><p>${esc(c.description)}</p><button class="btn sm" onclick="openFile(${c.id})">Ouvrir</button> <button class="btn sm alt" onclick="dlFile(${c.id})">Télécharger</button></div>`;
+async function openFile(id){const c=_c.find(x=>x.id===id);let u=await getUrl(id,false);if(u){if(!canDl(c))u+='#toolbar=0&navpanes=0';window.open(u,'_blank','noopener')}}
+async function dlFile(id){const c=_c.find(x=>x.id===id);if(!canDl(c)){toast('Le téléchargement est réservé aux cours de votre niveau et de votre filière',1);return}const u=await getUrl(id,true);if(u){const a=document.createElement('a');a.href=u;a.download='';a.rel='noopener';document.body.appendChild(a);a.click();a.remove()}}
+const contentCard=c=>`<div class="card"><span class="tag">${esc([c.category||c.kind,c.is_premium?'abonnés':'gratuit'].join(' · '))}</span><h3>${esc(c.title)}</h3><p class="small">${esc([c.annee_academique,c.filiere,c.niveau&&'Niveau '+c.niveau,c.semestre,c.ue_code].filter(Boolean).join(' · '))}</p><p>${esc(c.description)}</p><button class="btn sm" onclick="openFile(${c.id})">Ouvrir</button> ${dlBtn(c)}</div>`;
 
 R.services=async()=>{
   const g={};SV.forEach(([k,v])=>g[k]=v.map(t=>({title:t})));
@@ -272,15 +327,15 @@ R.abonnement=sel=>{
   if(need())return;
   if(!user)return set('<div class="card narrow"><h2>Abonnement</h2><p>Connectez-vous ou créez un compte pour vous abonner.</p><a class="btn" href="#/connexion">Se connecter</a></div>');
   set(`<h2>Abonnement</h2>${sub?`<p class="ok">Abonnement actif jusqu’au ${dt(sub.ends_at)}. Un nouveau paiement prolonge cette date.</p>`:''}
-  <form id="pf" class="card narrow"><label>Formule<select name="plan">${PLANS.map(p=>`<option value="${p.id}" ${p.id===sel?'selected':''}>${p.label} : ${fmt(p.price)}</option>`).join('')}</select></label>
+  <form id="pf" class="card narrow"><label>Formule<select name="plan">${myPlans().map(p=>`<option value="${p.id}" ${p.id===sel?'selected':''}>${p.label} : ${fmt(p.price)}</option>`).join('')}</select></label>
   <label>Moyen de paiement<select name="meth"><option value="mtn">MTN Mobile Money</option><option value="orange">Orange Money</option></select></label>
   <p id="ins" class="card"></p>
   <label>Référence de la transaction (reçue par SMS)<input name="tx_ref" required minlength="4"></label>
   <button class="btn">J’ai effectué le paiement</button></form>`);
-  const f=$('#pf'),upd=()=>{const p=PLANS.find(x=>x.id===f.plan.value),n=f.meth.value==='mtn'?CFG.mtn:CFG.om;
+  const f=$('#pf'),upd=()=>{const p=ALLPLANS.find(x=>x.id===f.plan.value),n=f.meth.value==='mtn'?CFG.mtn:CFG.om;
     $('#ins').innerHTML=`Envoyez <b>${fmt(p.price)}</b> au <b>${n}</b> (${f.meth.value==='mtn'?'MTN Mobile Money':'Orange Money'}), puis saisissez la référence ci-dessous. L’administrateur vérifie le paiement et active votre accès.`};
   f.onchange=upd;upd();
-  f.onsubmit=async e=>{e.preventDefault();const p=PLANS.find(x=>x.id===f.plan.value);
+  f.onsubmit=async e=>{e.preventDefault();const p=ALLPLANS.find(x=>x.id===f.plan.value);
     const{error}=await db.from('payments').insert({user_id:user.id,plan_id:p.id,amount:p.price,method:f.meth.value,tx_ref:f.tx_ref.value.trim()});
     if(error)return toast(error.code==='23505'?'Cette référence a déjà été utilisée':error.message,1);
     toast('Paiement enregistré, en attente de validation');location.hash='#/compte'};
@@ -289,20 +344,30 @@ R.abonnement=sel=>{
 const fl=(n,l,t,r=1)=>`<label>${l}${Array.isArray(t)?`<select name="${n}" ${r?'required':''}><option value="">Choisir</option>${t.map(o=>`<option>${o}</option>`).join('')}</select>`:t==='area'?`<textarea name="${n}" rows="3"></textarea>`:`<input name="${n}" type="${t||'text'}" ${r?'required':''}>`}</label>`;
 const YRS=Array.from({length:15},(_,i)=>2026-i);
 const PIECES=['Une photocopie certifiée de l’acte de naissance datant de moins de trois (03) mois','Une photocopie certifiée du diplôme ou de l’attestation de réussite du Baccalauréat ou du GCE A/L (première année), ou du diplôme ou de l’attestation de licence (classique, professionnelle ou technologique), BTS, HND, DUT, DEUG ou d’un diplôme équivalent','Un certificat médical délivré par un médecin fonctionnaire, datant de moins de trois (03) mois, certifiant que le candidat est apte à poursuivre des études supérieures','Quatre (04) photos 4x4 du candidat','Le reçu de versement bancaire : 20 000 FCFA pour la 1re année et 25 000 FCFA pour la 3e année (droits d’inscription au concours de l’ESTLC, Université d’Ebolowa), à verser au compte CCA Cameroun n° 10039-10012-00272768601-40, dans les agences du Cameroun','Une enveloppe A4 timbrée au tarif réglementaire, portant l’adresse exacte du candidat'];
-async function sendApp(kind,form){
+async function sendApp(kind,form,meta){
   const fd=new FormData(form),data={},files=[];
-  for(const k of new Set(fd.keys())){const v=fd.getAll(k);if(v[0] instanceof File){if(v[0].size)files.push([k,v[0]]);continue}data[k]=v.length>1?v.join(' ; '):v[0]}
-  if(!db){const r=await fetch('https://formsubmit.co/ajax/'+CFG.mail,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({_subject:'EFX STUDYPLACE : candidature '+kind,...data})});
-    return String((await r.json()).success)==='true'?null:{message:'Envoi impossible'}}
-  for(const[k,f]of files){const p='candidatures/'+Date.now()+'-'+f.name.replace(/[^\w.-]/g,'_');const u=await db.storage.from('docs').upload(p,f);if(u.error)return u.error;data[k+'_file']=p}
-  return (await db.from('applications').insert({kind,data,user_id:user?.id??null})).error;
+  for(const k of new Set(fd.keys())){if(k==='pay_method'||k==='pay_ref')continue;const v=fd.getAll(k);if(v[0] instanceof File){if(v[0].size)files.push([k,v[0]]);continue}data[k]=v.length>1?v.join(' ; '):v[0]}
+  if(meta&&meta.labels)data._labels=meta.labels;
+  for(const[k,f]of files){const p='candidatures/'+user.id+'/'+Date.now()+'-'+f.name.replace(/[^\w.-]/g,'_');const u=await db.storage.from('docs').upload(p,f);if(u.error)throw u.error;data[k+'_file']=p}
+  const r=await db.from('applications').insert({kind,data,user_id:user.id,form_id:meta?meta.form_id:null,form_title:meta?meta.form_title:null}).select('id').single();
+  if(r.error)throw r.error;
+  const m=fd.get('pay_method'),ref=fd.get('pay_ref');
+  if(m&&ref){const p=await db.rpc('pay_application',{p_app:r.data.id,p_method:m,p_ref:String(ref).trim()});if(p.error)throw new Error('Candidature enregistrée, mais le paiement a été refusé : '+p.error.message+' (écrivez-nous à '+CFG.mail+')')}
+  fetch('https://formsubmit.co/ajax/'+CFG.mail,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({_subject:'EFX STUDYPLACE : nouvelle candidature ('+(meta&&meta.form_title?meta.form_title:kind)+')',candidat:profile?.full_name||'',email:user.email,date_et_heure:new Date().toLocaleString('fr-FR'),numero:r.data.id,paiement:m?(m+' / '+ref):'aucun'})}).catch(()=>{});
+  return r.data.id;
 }
-R.candidature=(tab='concours')=>{
-  const conc=tab!=='repetition';
-  const tabs=`<div class="tabs"><a class="btn sm ${conc?'':'alt'}" href="#/candidature/concours">Concours ESTLC</a><a class="btn sm ${conc?'alt':''}" href="#/candidature/repetition">Cours de répétition</a></div>`;
+R.candidature=async(tab='concours')=>{
+  if(need())return;if(!user)return loginCard('Candidature');
+  const FM=await q(db.from('forms').select('*').eq('is_active',true).order('id'));
+  const fee=+((await q(db.from('settings').select('*').eq('key','fee_repetition')))[0]?.value||0);
+  const cur=FM.find(f=>'f'+f.id===tab),conc=!cur&&tab!=='repetition';
+  const tabs=`<div class="tabs"><a class="btn sm ${conc?'':'alt'}" href="#/candidature/concours">Concours ESTLC</a><a class="btn sm ${tab==='repetition'?'':'alt'}" href="#/candidature/repetition">Cours de répétition</a>${FM.map(f=>`<a class="btn sm ${cur&&cur.id===f.id?'':'alt'}" href="#/candidature/f${f.id}">${esc(f.title)}</a>`).join('')}</div>`;
+  const payBox=amt=>amt>0?`<fieldset><legend>Paiement</legend><p>Montant à payer : <b>${fmt(amt)}</b>. Envoyez-le par MTN Mobile Money au <b>${CFG.mtn}</b> ou par Orange Money au <b>${CFG.om}</b>, puis saisissez la référence reçue par SMS. Votre dossier est validé après vérification du paiement.</p><div class="fields"><label>Moyen de paiement<select name="pay_method" required><option value="mtn">MTN Mobile Money</option><option value="orange">Orange Money</option></select></label><label>Référence de la transaction<input name="pay_ref" required minlength="4"></label></div></fieldset>`:'';
+  const fieldHtml=x=>x.type==='select'?fl(x.name,esc(x.label),(x.options||[]).map(esc),x.required?1:0):x.type==='textarea'?fl(x.name,esc(x.label),'area',x.required?1:0):(x.type==='file'||x.type==='photo')?`<label>${esc(x.label)}<input type="file" name="${x.type==='photo'?'portrait':esc(x.name)}" accept="${x.type==='photo'?'image/*':'image/*,.pdf,.doc,.docx'}" ${x.required?'required':''}></label>`:fl(x.name,esc(x.label),x.type||'text',x.required?1:0);
+  const cfHtml=f=>`<h2>${esc(f.title)}</h2>${tabs}<p style="white-space:pre-line">${esc(f.description||'')}</p><form id="cf"><fieldset><legend>Informations</legend><div class="fields">${(f.fields||[]).map(fieldHtml).join('')}</div></fieldset>${payBox(f.payment_amount)}<button class="btn">Envoyer</button></form>`;
   const parents=r=>fl('pere','Nom du père ou tuteur','text',r)+fl('tel_pere','Téléphone du père ou tuteur','tel',r)+fl('mere','Nom de la mère ou tutrice','text',r)+fl('tel_mere','Téléphone de la mère ou tutrice','tel',r);
-  set(conc?`<h2>Postulez pour une formation de qualité à l’ESTLC</h2>${tabs}<p>École supérieure de transport, de logistique et de commerce (ESTLC) de l’Université d’Ebolowa, à Ambam. Remplissez le formulaire avec soin, puis consultez les <a href="#/modalites">modalités</a>.</p>
-  <form id="cf"><fieldset><legend>1. Informations personnelles</legend><div class="fields">${fl('nom','Nom')}${fl('prenom','Prénom')}${fl('sexe','Sexe',['Masculin','Féminin'])}${fl('date_naissance','Date de naissance','date')}${fl('lieu_naissance','Lieu de naissance')}${fl('telephone','Numéro de téléphone','tel')}${fl('cni','Numéro de CNI ou passeport')}${fl('delivrance','Date de délivrance','date',0)}${fl('residence','Lieu de résidence')}${fl('email','E-mail','email')}${fl('situation','Statut matrimonial',['Célibataire','En couple','Marié(e)'])}${fl('langue','Première langue',['Français','Anglais'])}<label>Nationalité<select name="nationalite" id="nat" required><option value="">Choisir</option>${PAYS.map(p=>`<option>${p}</option>`).join('')}</select></label></div><div class="fields" id="geo"></div><div class="fields">${fl('handicap','Avez-vous un handicap ?',['Non','Oui'])}${fl('handicap_desc','Description du handicap','text',0)}</div></fieldset>
+  set(cur?cfHtml(cur):conc?`<h2>Postulez pour une formation de qualité à l’ESTLC</h2>${tabs}<p>École supérieure de transport, de logistique et de commerce (ESTLC) de l’Université d’Ebolowa, à Ambam. Remplissez le formulaire avec soin, puis consultez les <a href="#/modalites">modalités</a>.</p>
+  <form id="cf"><fieldset><legend>1. Informations personnelles</legend><div class="fields">${fl('nom','Nom')}${fl('prenom','Prénom')}${fl('sexe','Sexe',['Masculin','Féminin'])}${fl('date_naissance','Date de naissance','date')}${fl('lieu_naissance','Lieu de naissance')}${fl('telephone','Numéro de téléphone','tel')}${fl('cni','Numéro de CNI ou passeport')}${fl('delivrance','Date de délivrance','date',0)}${fl('residence','Lieu de résidence')}<label>Photo de portrait<input type="file" name="portrait" accept="image/*" required></label>${fl('email','E-mail','email')}${fl('situation','Statut matrimonial',['Célibataire','En couple','Marié(e)'])}${fl('langue','Première langue',['Français','Anglais'])}<label>Nationalité<select name="nationalite" id="nat" required><option value="">Choisir</option>${PAYS.map(p=>`<option>${p}</option>`).join('')}</select></label></div><div class="fields" id="geo"></div><div class="fields">${fl('handicap','Avez-vous un handicap ?',['Non','Oui'])}${fl('handicap_desc','Description du handicap','text',0)}</div></fieldset>
   <fieldset><legend>2. Informations académiques</legend><div class="fields">${fl('filiere','Filière d’admission',['TTL','GLTCO','AMA','GSI','TCT','GDT','GCIM','MFT','MLS'])}${fl('diplome','Diplôme',['Baccalauréat','GCE A/L','Licence','BTS','HND','DUT','DEUG','Autre diplôme équivalent'])}${fl('serie','Série ou spécialité','text')}${fl('annee','Année d’obtention du diplôme',YRS)}${fl('mention','Mention',['Passable','Assez bien','Bien','Très bien','Excellent','Parfait'])}${fl('etablissement','Établissement d’obtention')}${fl('pays_diplome','Pays d’obtention',PAYS)}</div></fieldset>
   <fieldset><legend>3. Informations liées au concours</legend><div class="fields">${fl('centre_examen','Centre d’examen',['Ambam','Bafoussam','Bafia','Bertoua','Douala','Ebolowa','Garoua','Buea','Yaoundé'])}${fl('centre_depot','Centre de dépôt',['Scolarité Ambam','DRES Ouest','DRES Est','DRES Littoral','DRES Sud','DRES Nord','DRES Centre','DDES Fako','DDES Bafia'])}${fl('site','Site de formation',['ESTLC (École supérieure de transport, de logistique et de commerce)','ISLAPE (Institut supérieur La Perle)'])}</div></fieldset>
   <fieldset><legend>4. Informations complémentaires</legend><div class="fields">${parents(1)}</div></fieldset>
@@ -310,17 +375,18 @@ R.candidature=(tab='concours')=>{
   <button class="btn">Envoyer ma candidature</button></form>`
   :`<h2>Cours de répétition et remise à niveau</h2>${tabs}<p>Cours à domicile ou non, par l’équipe EFX STUDYPLACE, à des coûts très abordables. Remplissez le formulaire avec soin et joignez les documents demandés.</p>
   <form id="cf"><fieldset><legend>Vos informations</legend><div class="fields">${fl('nom','Nom')}${fl('prenom','Prénom')}${fl('sexe','Sexe',['Masculin','Féminin'])}${fl('date_naissance','Date de naissance','date')}${fl('lieu_naissance','Lieu de naissance')}${fl('telephone','Numéro de téléphone','tel')}${fl('cni','Numéro de CNI ou passeport')}${fl('adresse','Adresse')}${fl('email','E-mail','email')}${fl('langue','Première langue',['Français','Anglais'])}${parents(0)}</div>${fl('matieres','Matières ou niveau à renforcer','area',0)}</fieldset>
-  <fieldset><legend>Documents</legend><div class="fields"><label>Image lisible de votre CNI<input type="file" name="cni" accept="image/*,.pdf" required></label><label>Photo claire de votre portrait<input type="file" name="portrait" accept="image/*" required></label></div></fieldset><button class="btn">Envoyer ma demande</button></form>`);
+  <fieldset><legend>Documents</legend><div class="fields"><label>Image lisible de votre CNI<input type="file" name="cni" accept="image/*,.pdf" required></label><label>Photo claire de votre portrait<input type="file" name="portrait" accept="image/*" required></label></div></fieldset>${payBox(fee)}<button class="btn">Envoyer ma demande</button></form>`);
   const geo=()=>{const cm=$('#nat').value==='Cameroun';$('#geo').innerHTML=cm?`<label>Région<select name="region" id="rg" required><option value="">Choisir</option>${Object.keys(CAM).map(r=>`<option>${r}</option>`).join('')}</select></label><label>Département<select name="departement" id="dp" required><option value="">Choisir d’abord une région</option></select></label>`:'<label>Région ou province<input name="region"></label><label>Département ou préfecture<input name="departement"></label>';
     if(cm)$('#rg').onchange=()=>{$('#dp').innerHTML='<option value="">Choisir</option>'+(CAM[$('#rg').value]||[]).map(d=>`<option>${d}</option>`).join('')}};
   if(conc){$('#nat').onchange=geo;geo()}
   $('#cf').onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector('button');b.disabled=true;
-    try{const err=await sendApp(tab,e.target);err?toast(err.message,1):(toast('Envoyé avec succès'),e.target.reset())}catch(x){toast('Envoi impossible, réessayez ou écrivez-nous par e-mail',1)}b.disabled=false};
+    try{await sendApp(conc?'concours':cur?'formation':'repetition',e.target,cur?{form_id:cur.id,form_title:cur.title,labels:Object.fromEntries((cur.fields||[]).map(x=>[x.type==='photo'?'portrait':x.name,x.label]))}:null);
+      toast('Envoyé avec succès. Retrouvez votre dossier dans « Mon compte ».');location.hash='#/compte'}catch(x){toast(x.message||'Envoi impossible, réessayez ou écrivez-nous par e-mail',1)}b.disabled=false};
 };
 
 R.modalites=()=>set(`<h2>Modalités d’accès aux produits et services EFX</h2>
 <div class="card"><h3>Accéder aux cours premium</h3><ol><li>Créez votre compte puis connectez-vous.</li><li>Choisissez une formule d’abonnement.</li><li>Envoyez le montant par MTN Mobile Money (${CFG.mtn}) ou Orange Money (${CFG.om}).</li><li>Saisissez la référence reçue par SMS sur la page Abonnement.</li><li>L’administrateur vérifie le paiement et active votre accès jusqu’à la date de fin de la formule.</li></ol></div>
-<div class="tw"><table><tr><th>Formule</th><th>Durée</th><th>Prix</th></tr>${PLANS.map((p,i)=>`<tr><td>${p.label}</td><td>${[1,3,6,12][i]} mois</td><td>${fmt(p.price)}</td></tr>`).join('')}</table></div>
+<div class="tw"><table><tr><th>Formule</th><th>Durée</th><th>Prix</th></tr>${ALLPLANS.map((p,i)=>`<tr><td>${i<4?'Étudiant':'Élève'} · ${p.label}</td><td>${[1,3,6,12][i%4]} mois</td><td>${fmt(p.price)}</td></tr>`).join('')}</table></div>
 <div class="card" style="margin-top:1rem"><h3>Concours de l’ESTLC</h3><p>Remplissez le <a href="#/candidature/concours">formulaire de candidature</a>, versez les droits d’inscription (20 000 FCFA en 1re année, 25 000 FCFA en 3e année) puis déposez votre dossier physique au centre de dépôt choisi. La liste des pièces à fournir figure à la fin du formulaire.</p></div>
 <div class="card"><h3>Cours de répétition</h3><p>Remplissez le <a href="#/candidature/repetition">formulaire de demande</a> avec votre CNI et votre portrait. Nous vous contactons pour fixer le lieu, l’horaire et le tarif.</p></div>`);
 
@@ -330,7 +396,7 @@ R.apropos=()=>set(`<h2>À propos d’EFX STUDYPLACE</h2>
 <div class="card"><h3>Nous contacter</h3><p>Ambam, Ebolowa, Sud-Cameroun · B.P. 01 Ambam<br><a href="mailto:${CFG.mail}">${CFG.mail}</a><br>(+237) 689054370 / 678166542 / 693020377</p><a class="btn alt sm" href="#/contact">Écrire un message</a></div>`);
 
 R.contact=()=>{
-  set(`<h2>Contact</h2><form id="mf" class="card narrow"><p>Votre message est envoyé à ${CFG.mail}.</p><input name="name" placeholder="Votre nom" required><input name="email" type="email" placeholder="Votre e-mail" required><input name="subject" placeholder="Sujet" required><textarea name="message" rows="5" placeholder="Votre message" required></textarea><button class="btn">Envoyer le message</button></form>
+  set(`<h2>Contact</h2><form id="mf" class="card narrow"><p>Votre message est envoyé à ${CFG.mail}.</p><input name="name" placeholder="Votre nom" required><input name="email" type="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Votre e-mail" required><input name="subject" placeholder="Sujet" required><textarea name="message" rows="5" placeholder="Votre message" required></textarea><button class="btn">Envoyer le message</button></form>
   <p class="small">Vous pouvez aussi écrire directement à <a href="mailto:${CFG.mail}">${CFG.mail}</a>.</p>`);
   $('#mf').onsubmit=async e=>{e.preventDefault();
     try{const r=await fetch('https://formsubmit.co/ajax/'+CFG.mail,{method:'POST',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({...Object.fromEntries(new FormData(e.target)),_subject:'EFX STUDYPLACE : nouveau message'})});
@@ -342,8 +408,12 @@ R.confidentialite=()=>set(`<h2>Conditions d’utilisation et confidentialité</h
 
 // ---------- Compte ----------
 async function doLogin(v,needAdmin){
-  const{data,error}=await db.auth.signInWithPassword(v);
-  if(error)return toast(/not confirmed/i.test(error.message)?'Confirmez d’abord votre e-mail (lien reçu à l’inscription)':'E-mail ou mot de passe incorrect',1);
+  const id=String(v.email||'').trim();v={email:id.includes('@')?id.toLowerCase():pseudo(id),password:v.password}; // un espace ou une majuscule ajoutés par le clavier du téléphone faisaient échouer la connexion
+  let r1=await db.auth.signInWithPassword(v);
+  if(r1.error&&!id.includes('@')){const r2=await db.auth.signInWithPassword({email:pseudoAlt(id),password:v.password});if(!r2.error){r1=r2;v.email=pseudoAlt(id)}}
+  const{data,error}=r1;
+  if(error)return toast(/not confirmed/i.test(error.message)?(v.email.endsWith('@'+PSEUDO)?'Compte en attente d’activation : contactez l’administrateur':'Confirmez d’abord votre e-mail (lien reçu à l’inscription)'):'E-mail ou mot de passe incorrect',1);
+  try{if(window.PasswordCredential)await navigator.credentials.store(new PasswordCredential({id:v.email,password:v.password}))}catch(x){} // propose d’enregistrer le mot de passe dans Chrome
   await setUser(data.user);
   if(needAdmin&&!admin){await db.auth.signOut();return toast('Ce compte n’a pas les droits d’administrateur',1)}
   toast('Connexion réussie');location.hash=admin?'#/admin':'#/compte';
@@ -351,18 +421,34 @@ async function doLogin(v,needAdmin){
 R.connexion=()=>{
   if(need())return;
   if(user){location.hash=admin?'#/admin':'#/compte';return}
-  set(`<div class="card narrow"><h2>Connexion</h2><form id="lf"><input name="email" type="email" placeholder="E-mail" required autocomplete="username"><input name="password" type="password" placeholder="Mot de passe" required autocomplete="current-password"><button class="btn">Se connecter</button></form><p class="small"><a href="#" id="fg">Mot de passe oublié ?</a></p></div>
-  <div class="card narrow"><h2>Créer un compte</h2><form id="sf"><input name="full_name" placeholder="Nom complet" required><input name="phone" type="tel" placeholder="Téléphone"><label>Photo de profil<input type="file" name="avatar" accept="image/*" required></label><input name="email" type="email" placeholder="E-mail" required autocomplete="username"><input name="password" type="password" minlength="8" placeholder="Mot de passe (8 caractères minimum)" required autocomplete="new-password"><label class="chk"><input type="checkbox" required><span>J’accepte les <a href="#/confidentialite">conditions d’utilisation et la politique de confidentialité</a></span></label><button class="btn">Créer mon compte</button></form></div>
-  <p class="small" style="text-align:center"><a href="#/admin-login">Espace administrateur</a></p>`);
+  set(`${_susp?`<div class="card narrow" style="border-color:var(--ko)"><b>Votre compte est suspendu temporairement.</b> Contactez l’administrateur : <a href="mailto:${CFG.mail}">${CFG.mail}</a></div>`:''}<div class="card narrow"><h2>Connexion</h2><form id="lf"><input name="email" type="text" inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="E-mail (étudiants) ou téléphone (élèves)" required autocomplete="username"><input name="password" type="password" placeholder="Mot de passe" required autocomplete="current-password"><button class="btn">Se connecter</button></form><p class="small"><a href="#" id="fg">Mot de passe oublié ?</a></p></div>
+  <div class="card narrow"><h2>Créer un compte</h2><form id="sf"><label>Je m’inscris comme<select name="statut" id="sst"><option value="etudiant">Étudiant (université)</option><option value="eleve">Élève (lycée ou primaire)</option></select></label><input name="full_name" placeholder="Nom complet" required><input name="phone" id="sph" type="tel" inputmode="tel" placeholder="Téléphone"><label>Photo de profil<input type="file" name="avatar" accept="image/*" required></label><div id="sdyn"></div><input name="password" type="password" minlength="8" placeholder="Mot de passe (8 caractères minimum)" required autocomplete="new-password"><label class="chk"><input type="checkbox" required><span>J’accepte les <a href="#/confidentialite">conditions d’utilisation et la politique de confidentialité</a></span></label><button class="btn">Créer mon compte</button></form></div>
+  ${devAdmin()?'<p class="small" style="text-align:center"><a href="#/admin-login">Espace administrateur</a></p>':''}`);
+  const sdyn=()=>{
+    const el=$('#sst').value==='eleve';
+    $('#sph').required=el;
+    $('#sdyn').innerHTML=el
+      ?`<div class="fields"><label>Catégorie<select name="categorie" id="scat" required><option value="">Choisir</option><option value="lycee">Lycée</option><option value="primaire">Primaire</option></select></label><label>Classe<select name="classe" id="scl" required><option value="">Choisir d’abord la catégorie</option></select></label></div><p class="small">Votre numéro de téléphone sert d’identifiant de connexion.</p>`
+      :`<div class="fields"><label>Niveau d’études<select name="niveau" id="sn" required><option value="">Choisir</option>${[1,2,3,4,5].map(n=>`<option value="${n}">Niveau ${n}</option>`).join('')}</select></label><label>Filière<select name="filiere" id="sfl" required><option value="">Choisir d’abord le niveau</option></select></label></div><input name="email" type="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="E-mail" required autocomplete="username">`;
+    if(el)$('#scat').onchange=()=>{$('#scl').innerHTML='<option value="">Choisir</option>'+(CLASSES[$('#scat').value]||[]).map(c=>`<option>${c}</option>`).join('')};
+    else $('#sn').onchange=()=>{$('#sfl').innerHTML='<option value="">Choisir</option>'+filsFor($('#sn').value).map(f=>`<option>${f}</option>`).join('')};
+  };
+  $('#sst').onchange=sdyn;sdyn();
   $('#lf').onsubmit=e=>{e.preventDefault();doLogin(Object.fromEntries(new FormData(e.target)),false)};
-  $('#fg').onclick=async e=>{e.preventDefault();const m=$('#lf').email.value.trim();if(!m)return toast('Saisissez d’abord votre e-mail',1);
+  $('#fg').onclick=async e=>{e.preventDefault();const m=$('#lf').email.value.trim().toLowerCase();if(!m)return toast('Saisissez d’abord votre e-mail',1);if(!m.includes('@'))return toast('Les comptes élèves se réinitialisent auprès de l’administrateur : écrivez-lui sur WhatsApp au 689054370',1);
     const{error}=await db.auth.resetPasswordForEmail(m,{redirectTo:location.href.split('#')[0]});
     error?toast(error.message,1):toast('Un lien de réinitialisation a été envoyé à cette adresse')};
-  $('#sf').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target)),pk='efx_av_'+v.email.trim().toLowerCase();
-    try{const b=await shrink(v.avatar);const d=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(b)});localStorage.setItem(pk,d)}catch(x){return toast('Photo illisible : choisissez une image (JPG, PNG ou WebP)',1)}
-    const{data,error}=await db.auth.signUp({email:v.email.trim(),password:v.password,options:{data:{full_name:v.full_name,phone:v.phone}}});
-    if(error){try{localStorage.removeItem(pk)}catch{}return toast(error.message,1)}
-    if(data.session){toast('Compte créé');location.hash='#/compte'}else toast('Compte créé. Confirmez votre e-mail avec le lien reçu, puis connectez-vous.')};
+  $('#sf').onsubmit=async e=>{e.preventDefault();
+    const v=Object.fromEntries(new FormData(e.target)),el=v.statut==='eleve',ph=digits(v.phone);
+    if(el&&!/^\d{8,12}$/.test(ph))return toast('Saisissez un numéro de téléphone valide : c’est votre identifiant',1);
+    const email=el?pseudo(v.phone):String(v.email||'').trim().toLowerCase(),pk='efx_av_'+email;
+    try{const b=await shrink(v.avatar);const d=await new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(b)});localStorage.setItem(pk,d);if(el)localStorage.setItem('efx_av_'+pseudoAlt(v.phone),d)}catch(x){return toast('Photo illisible : choisissez une image (JPG, PNG ou WebP)',1)}
+    const opts={data:{full_name:v.full_name,phone:el?ph:v.phone,statut:v.statut,categorie:v.categorie||null,classe:v.classe||null,niveau:v.niveau||null,filiere:v.filiere||null}};
+    let su=await db.auth.signUp({email,password:v.password,options:opts});
+    if(su.error&&el&&/invalid/i.test(su.error.message))su=await db.auth.signUp({email:pseudoAlt(v.phone),password:v.password,options:opts});
+    const{data,error}=su;
+    if(error){try{localStorage.removeItem(pk)}catch{}return toast(/already|registered/i.test(error.message)?(el?'Ce numéro a déjà un compte : connectez-vous':'Cette adresse e-mail a déjà un compte : connectez-vous'):error.message,1)}
+    if(data.session){toast('Compte créé');location.hash='#/compte'}else toast(el?'Compte créé. Connectez-vous avec votre numéro de téléphone.':'Compte créé. Confirmez votre e-mail avec le lien reçu, puis connectez-vous.')};
 };
 R.application=()=>{
   if(!user||!(sub||admin))return set('<div class="card narrow"><h2>Application</h2><p>L’installation de l’application est réservée aux abonnés connectés.</p><a class="btn" href="#/abonnement">Voir les abonnements</a></div>');
@@ -380,6 +466,7 @@ const toks=t=>norm(t).split(/[^a-z0-9]+/).filter(w=>w.length>1&&!STOP.has(w));
 const PAGES=[['accueil','Accueil','accueil annonces carrousel presentation'],['cours','Cours','cours pdf filiere niveau semestre annee academique documents audio video image'],['culture','Culture','livres romans videos educatives epreuves bibliotheque'],['projets','Projets','projet suivi feuille de route taches equipe'],['services','Produits et services','bureautique infographie programmation education patisserie telecom'],['abonnement','Abonnement','prix tarif mensuel trimestriel semestriel annuel mobile money orange mtn'],['candidature','Candidature','concours estlc repetition inscription formulaire'],['modalites','Modalités d’accès','modalites acces paiement etapes'],['apropos','À propos','presentation mission efx screen'],['contact','Contact','contact message email telephone'],['connexion','Se connecter','connexion inscription compte mot de passe']];
 async function loadAll(){
   if(!db)return;
+  await loadCatalog();
   _c=await q(db.from('contents').select('*').order('created_at',{ascending:false}));
   _svdb=await q(db.from('services').select('*'));
   if(user)_pl=await q(db.from('projects').select('*'));
@@ -388,8 +475,8 @@ function find(qs){
   const T=toks(qs),yrs=YEARS.filter(y=>T.some(t=>/^20\d\d$/.test(t)&&y.includes(t))),W=T.filter(t=>!/^20\d\d$/.test(t));
   const all=(h,w)=>{h=h+' '+h.replace(/[^a-z0-9 ]/g,'');return w.length>0&&w.every(x=>h.includes(x))};
   const cat=[];
-  if(W.length)CAT.forEach(([fs,sm,rows])=>fs.forEach(f=>rows.forEach(r=>{if(all(norm(`${f} niveau ${Math.ceil(sm/2)} semestre ${ROM[sm]} s${sm} ${r[0]} ec${f}${r[1]} ${r[2]}`),W))cat.push({f,n:Math.ceil(sm/2),s:sm,t:r[2],ec:'EC'+f+r[1],y:yrs[0]||_yr})})));
-  const docs=_c.filter(c=>all(norm([c.title,c.description,c.filiere,c.niveau&&'niveau '+c.niveau,c.semestre,c.ue_code,c.annee_academique,c.category,c.kind,c.section==='culture'?'culture':'cours'].join(' ')),T));
+  if(W.length&&!isPupil())CAT.forEach(([fs,sm,rows])=>fs.forEach(f=>rows.forEach(r=>{if(all(norm(`${f} niveau ${Math.ceil(sm/2)} semestre ${ROM[sm]} s${sm} ${r[0]} ec${f}${r[1]} ${r[2]}`),W))cat.push({f,n:Math.ceil(sm/2),s:sm,t:r[2],ec:'EC'+f+r[1],y:yrs[0]||_yr})})));
+  const docs=_c.filter(c=>canSee(c)&&all(norm([c.title,c.description,c.filiere,c.niveau&&'niveau '+c.niveau,c.semestre,c.ue_code,c.annee_academique,c.category,c.kind,c.section==='culture'?'culture':'cours'].join(' ')),T));
   const pages=PAGES.filter(p=>all(norm(p[1]+' '+p[2]),T));
   const svc=[...SV.flatMap(([k,v])=>v.map(t=>({k,t}))),..._svdb.map(x=>({k:x.category,t:x.title+(x.description?'. '+x.description:'')}))].filter(x=>all(norm(x.k+' '+x.t),T));
   const prj=_pl.filter(p=>all(norm([p.title,p.summary,p.domain,p.owner_name].join(' ')),T));
@@ -400,7 +487,7 @@ function resHtml(r){
   const row=h=>`<div class="card" style="margin-bottom:.5rem">${h}</div>`,sec=(t,a)=>a.length?`<h3>${t} (${a.length})</h3>`+a.join(''):'';
   const out=sec('Pages',r.pages.map(p=>row(`<a href="#/${p[0]}"><b>${p[1]}</b></a>`)))
    +sec('Cours du catalogue',r.cat.slice(0,40).map(x=>row(`<b>${esc(x.t)}</b> <span class="small">${x.ec} · ${x.f} · Niveau ${x.n} · Semestre ${ROM[x.s]} · ${x.y}</span> <button class="btn sm" onclick="goCat('${x.f}',${x.n},'${x.y}')">Voir</button>`)))
-   +sec('Documents',r.docs.slice(0,40).map(c=>row(`<b>${esc(c.title)}</b> <span class="small">${esc([c.section==='culture'?'culture':'cours',c.category||c.kind,c.annee_academique,c.filiere,c.niveau&&'Niveau '+c.niveau].filter(Boolean).join(' · '))}</span> <button class="btn sm" onclick="openFile(${c.id})">Ouvrir</button> <button class="btn sm alt" onclick="dlFile(${c.id})">Télécharger</button>`)))
+   +sec('Documents',r.docs.slice(0,40).map(c=>row(`<b>${esc(c.title)}</b> <span class="small">${esc([c.section==='culture'?'culture':'cours',c.category||c.kind,c.annee_academique,c.filiere,c.niveau&&'Niveau '+c.niveau].filter(Boolean).join(' · '))}</span> <button class="btn sm" onclick="openFile(${c.id})">Ouvrir</button> ${dlBtn(c)}`)))
    +sec('Projets',r.prj.map(p=>row(`<a href="#/projet/${p.id}"><b>${esc(p.title)}</b></a> <span class="small">${esc(p.owner_name)}</span>`)))
    +sec('Services',r.svc.slice(0,20).map(x=>row(`<b>${esc(x.k)}</b> : ${esc(x.t)}`)));
   return out||'<p>Aucun résultat. Essayez d’autres mots (matière, filière, année, titre…).</p>';
@@ -420,13 +507,13 @@ R.culture=async(cat='tous')=>{
   await loadAll();
   const tabs=`<div class="tabs">${Object.entries(C).map(([k,t])=>`<a class="btn sm ${k===cat?'':'alt'}" href="#/culture/${k}">${t}</a>`).join('')}</div>`;
   set(`<h2>Culture</h2><p>Livres, romans, vidéos éducatives, épreuves et autres ressources à consulter et à télécharger.</p>${tabs}<div class="row"><input id="cq" type="search" placeholder="Rechercher dans la culture…" aria-label="Rechercher"></div><div id="list" class="grid"></div>`);
-  const draw=()=>{const k=toks($('#cq').value);$('#list').innerHTML=_c.filter(c=>c.section==='culture'&&(cat==='tous'||c.category===cat)&&k.every(w=>norm([c.title,c.description,c.annee_academique,c.filiere].join(' ')).includes(w))).map(contentCard).join('')||`<p>Aucun document pour le moment.${db?'':' La connexion à la base de données n’est pas configurée.'}</p>`};
+  const draw=()=>{const k=toks($('#cq').value);$('#list').innerHTML=_c.filter(c=>c.section==='culture'&&canSee(c)&&(cat==='tous'||c.category===cat)&&k.every(w=>norm([c.title,c.description,c.annee_academique,c.filiere].join(' ')).includes(w))).map(contentCard).join('')||`<p>Aucun document pour le moment.${db?'':' La connexion à la base de données n’est pas configurée.'}</p>`};
   $('#cq').oninput=draw;draw();
 };
 
 // ---------- Projets ----------
 const dtt=d=>new Date(d).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'});
-const loginCard=t=>set(`<div class="card narrow"><h2>${t}</h2><p>Connectez-vous pour accéder aux projets.</p><a class="btn" href="#/connexion">Se connecter</a></div>`);
+const loginCard=t=>set(`<div class="card narrow"><h2>${t}</h2><p>Connectez-vous pour continuer.</p><a class="btn" href="#/connexion">Se connecter</a></div>`);
 async function joinReq(id){const{error}=await db.rpc('request_join',{pid:id});error?toast(error.message,1):(toast('Demande envoyée'),route())}
 async function decide(pid,uid,ok_){const{error}=await db.rpc('decide_join',{pid:pid,p_uid:uid,accept:ok_});error?toast(error.message,1):(toast(ok_?'Membre accepté':'Demande refusée'),route())}
 async function projFile(p){const r=await db.storage.from('projects').createSignedUrl(p,3600);r.error?toast('Fichier indisponible',1):window.open(r.data.signedUrl,'_blank','noopener')}
@@ -506,42 +593,153 @@ R.projet=async id=>{
 R['admin-login']=()=>{
   if(need())return;
   if(admin){location.hash='#/admin';return}
-  set(`<div class="card narrow"><h2>Espace administrateur</h2><p class="small">Accès réservé au propriétaire de la plateforme.</p><form id="af2"><input name="email" type="email" placeholder="E-mail administrateur" required autocomplete="username"><input name="password" type="password" placeholder="Mot de passe" required autocomplete="current-password"><button class="btn">Accéder au tableau de bord</button></form><p class="small"><a href="#" id="fg">Mot de passe oublié ?</a> · <a href="#/connexion">Connexion utilisateur</a></p></div>`);
+  set(`<div class="card narrow"><h2>Espace administrateur</h2><p class="small">Accès réservé au propriétaire de la plateforme.</p><form id="af2"><input name="email" type="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="E-mail administrateur" required autocomplete="username"><input name="password" type="password" placeholder="Mot de passe" required autocomplete="current-password"><button class="btn">Accéder au tableau de bord</button></form><p class="small"><a href="#" id="fg">Mot de passe oublié ?</a> · <a href="#/connexion">Connexion utilisateur</a></p></div>`);
   $('#af2').onsubmit=e=>{e.preventDefault();doLogin(Object.fromEntries(new FormData(e.target)),true)};
-  $('#fg').onclick=async e=>{e.preventDefault();const m=$('#af2').email.value.trim();if(!m)return toast('Saisissez d’abord votre e-mail',1);
+  $('#fg').onclick=async e=>{e.preventDefault();const m=$('#af2').email.value.trim().toLowerCase();if(!m)return toast('Saisissez d’abord votre e-mail',1);
     const{error}=await db.auth.resetPasswordForEmail(m,{redirectTo:location.href.split('#')[0]});
     error?toast(error.message,1):toast('Un lien de réinitialisation a été envoyé à cette adresse')};
 };
 R['nouveau-mot-de-passe']=()=>{
   if(need())return;
-  set(`<form id="np" class="card narrow"><h2>Nouveau mot de passe</h2><input name="password" type="password" minlength="8" placeholder="Nouveau mot de passe (8 caractères minimum)" required autocomplete="new-password"><button class="btn">Enregistrer</button></form>`);
+  set(`<form id="np" class="card narrow"><h2>Nouveau mot de passe</h2><input type="email" name="username" value="${esc(user?.email||'')}" autocomplete="username" tabindex="-1" style="position:absolute;left:-9999px" aria-hidden="true"><input name="password" type="password" minlength="8" placeholder="Nouveau mot de passe (8 caractères minimum)" required autocomplete="new-password"><button class="btn">Enregistrer</button></form>`);
   $('#np').onsubmit=async e=>{e.preventDefault();const{error}=await db.auth.updateUser({password:e.target.password.value});
     error?toast(error.message,1):(toast('Mot de passe modifié'),location.hash=admin?'#/admin':'#/compte')};
 };
+function lvlCard(){
+  if(!profile)return '';
+  if(profile.statut==='eleve')return `<div class="card"><h3>Mon parcours</h3><p>Élève · ${esc(({lycee:'Lycée',primaire:'Primaire'})[profile.categorie]||'')} · classe <b>${esc(profile.classe||'—')}</b></p></div>`;
+  if(!profile.niveau)return `<form id="lv0" class="card"><h3>Mon niveau</h3><p class="small">Choisissez votre niveau et votre filière (une seule fois). Ils déterminent les cours que vous pouvez télécharger.</p><div class="fields"><label>Niveau<select name="niveau" id="n0" required><option value="">Choisir</option>${[1,2,3,4,5].map(n=>`<option value="${n}">Niveau ${n}</option>`).join('')}</select></label><label>Filière<select name="filiere" id="f0" required><option value="">Choisir d’abord le niveau</option></select></label></div><button class="btn">Enregistrer</button></form>`;
+  const head=`<div class="card"><h3>Mon parcours</h3><p>Niveau <b>${profile.niveau}</b> · filière <b>${esc(profile.filiere||'—')}</b> · année académique ${esc(profile.level_year||'—')}</p>`;
+  if(_lvlReq&&_lvlReq.status==='pending')return head+'<p>Votre demande de passage au niveau supérieur est en attente de validation par l’administrateur.</p></div>';
+  if(!lvlDue())return head+(_lvlReq&&_lvlReq.status==='rejected'&&_lvlReq.year===profile.level_year?'<p class="small">Votre dernière demande de passage n’a pas été validée.</p>':'')+'</div>';
+  const nl=profile.niveau+1,fs=filsFor(nl);
+  return `<div class="card" style="border:2px solid var(--gold)"><h3>L’année ${esc(profile.level_year)} est terminée</h3><p>Passez-vous au niveau ${nl} ? Joignez une image de votre relevé de notes : l’administrateur la consultera avant de valider.</p>
+  <form id="lvr"><label>Image du relevé de notes<input type="file" name="releve" accept="image/*" required></label><label>Filière au niveau ${nl}<select name="filiere" required>${fs.map(f=>`<option ${f===profile.filiere?'selected':''}>${f}</option>`).join('')}</select></label><button class="btn">Demander le passage au niveau ${nl}</button></form>
+  <p class="sep small">Vous redoublez ? <button class="btn alt sm" id="keep">Rester au niveau ${profile.niveau}</button></p></div>`;
+}
 R.compte=async()=>{
   if(need())return;
   if(!user){location.hash='#/connexion';return}
   const p=await q(db.from('payments').select('*').eq('user_id',user.id).order('id',{ascending:false}));
+  const apps=await q(db.from('applications').select('*').eq('user_id',user.id).order('id',{ascending:false}));_myPays=p;_myApps=apps;
   const u=avUrl(profile?.avatar_path),n=profile?.full_name||'';
   set(`<h2>Mon compte</h2>
+  ${lvlCard()}
   <form id="pf2" class="card"><h3>Mon profil</h3><div class="avl" id="avp">${u?`<img src="${esc(u)}" alt="Photo de profil">`:`<b>${esc((n||user.email)[0].toUpperCase())}</b>`}</div>
   <label>Changer la photo de profil<input type="file" name="avatar" accept="image/*"></label>
-  <div class="fields"><label>Nom complet<input name="full_name" value="${esc(n)}" required></label><label>Téléphone<input name="phone" type="tel" value="${esc(profile?.phone||'')}"></label><label>E-mail<input name="email" type="email" value="${esc(user.email)}" required></label></div>
+  <div class="fields"><label>Nom complet<input name="full_name" value="${esc(n)}" required></label><label>Téléphone<input name="phone" type="tel" value="${esc(profile?.phone||'')}"></label>${isPupil()?'':`<label>E-mail<input name="email" type="email" autocapitalize="none" autocorrect="off" spellcheck="false" value="${esc(user.email)}" required></label>`}</div>
   <button class="btn">Enregistrer les modifications</button></form>
-  <form id="pw" class="card"><h3>Changer le mot de passe</h3><input name="password" type="password" minlength="8" placeholder="Nouveau mot de passe (8 caractères minimum)" required autocomplete="new-password"><button class="btn">Modifier le mot de passe</button></form>
-  <div class="card"><p>${sub?`Abonnement <b>${esc(sub.plan_id)}</b> actif jusqu’au ${dt(sub.ends_at)}.`:'Aucun abonnement actif.'}</p><a class="btn" href="#/abonnement">${sub?'Prolonger':'S’abonner'}</a> <button class="btn alt" onclick="db.auth.signOut().then(()=>location.hash='#/accueil')">Se déconnecter</button>${(sub||admin)&&!isApp()?' <a class="btn alt" href="#/application">Télécharger l’application</a>':''}</div><h3>Mes paiements</h3>${tbl(p,['created_at','plan_id','amount','method','tx_ref','status'])}`);
+  <form id="pw" class="card"><h3>Changer le mot de passe</h3><input type="email" name="username" value="${esc(user.email)}" autocomplete="username" tabindex="-1" style="position:absolute;left:-9999px" aria-hidden="true"><input name="password" type="password" minlength="8" placeholder="Nouveau mot de passe (8 caractères minimum)" required autocomplete="new-password"><button class="btn">Modifier le mot de passe</button></form>
+  <div class="card"><p>${sub?`Abonnement <b>${esc(sub.plan_id)}</b> actif jusqu’au ${dt(sub.ends_at)}.`:'Aucun abonnement actif.'}</p><a class="btn" href="#/abonnement">${sub?'Prolonger':'S’abonner'}</a> <button class="btn alt" onclick="db.auth.signOut().then(()=>location.hash='#/accueil')">Se déconnecter</button>${(sub||admin)&&!isApp()?' <a class="btn alt" href="#/application">Télécharger l’application</a>':''}</div><h3>Mes candidatures</h3>${tbl(apps.map(a=>({...a,type:a.form_title||a.kind,statut:{pending:'en attente',validated:'validée',rejected:'rejetée'}[a.status]})),['created_at','type','statut'],a=>a.status==='validated'?`<button class="btn sm" onclick="ficheMy(${a.id})">Fiche d’inscription (PDF)</button>`:'')}<h3>Mes paiements et factures</h3>${tbl(p.map(x=>({...x,objet:x.label||x.plan_id})),['created_at','objet','amount','method','tx_ref','status'],x=>x.status==='approved'?`<button class="btn sm" onclick="invMy(${x.id})">Facture (PDF)</button>`:'')}`);
+  if($('#lv0')){
+    $('#n0').onchange=()=>{$('#f0').innerHTML='<option value="">Choisir</option>'+filsFor($('#n0').value).map(f=>`<option>${f}</option>`).join('')};
+    $('#lv0').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target));
+      const{error}=await db.from('profiles').update({niveau:+v.niveau,filiere:v.filiere,level_year:YEARS[0]}).eq('id',user.id);
+      error?toast(error.message,1):(await loadProfile(),toast('Niveau enregistré'),route())};
+  }
+  if($('#lvr')){
+    $('#lvr').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target));
+      try{const b=await fit(v.releve),path='releves/'+user.id+'/'+Date.now()+'.jpg';
+        const u=await db.storage.from('docs').upload(path,b,{contentType:'image/jpeg'});if(u.error)throw u.error;
+        const r=await db.rpc('request_level',{p_file:path,p_filiere:v.filiere});if(r.error)throw r.error;
+        _lvlReq=(await q(db.from('level_requests').select('*').eq('user_id',user.id).order('id',{ascending:false}).limit(1)))[0]||null;
+        toast('Demande envoyée : l’administrateur va consulter votre relevé');route()}catch(x){toast(x.message||'Échec de l’envoi',1)}};
+    $('#keep').onclick=async()=>{if(!confirm('Confirmer que vous restez au même niveau pour la nouvelle année ?'))return;const r=await db.rpc('keep_level');r.error?toast(r.error.message,1):(await loadProfile(),route())};
+  }
   $('#pf2 [name=avatar]').onchange=e=>{const f=e.target.files[0];if(f)$('#avp').innerHTML=`<img src="${URL.createObjectURL(f)}" alt="Aperçu">`};
   $('#pf2').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target)),btn=e.target.querySelector('button');btn.disabled=true;
     try{
       if(v.avatar&&v.avatar.size)await saveAvatar(await shrink(v.avatar));
       const{error}=await db.from('profiles').update({full_name:v.full_name.trim(),phone:v.phone.trim()}).eq('id',user.id);if(error)throw error;
       let msg='Profil mis à jour';
-      if(v.email.trim().toLowerCase()!==user.email.toLowerCase()){const r=await db.auth.updateUser({email:v.email.trim()});if(r.error)throw r.error;msg='Profil mis à jour. Confirmez le changement d’e-mail avec le lien envoyé à la nouvelle adresse.'}
+      if(v.email&&v.email.trim().toLowerCase()!==user.email.toLowerCase()){const r=await db.auth.updateUser({email:v.email.trim()});if(r.error)throw r.error;msg='Profil mis à jour. Confirmez le changement d’e-mail avec le lien envoyé à la nouvelle adresse.'}
       await loadProfile();drawMe();toast(msg);
     }catch(x){toast(x.message||'Modification impossible',1)}
     btn.disabled=false};
   $('#pw').onsubmit=async e=>{e.preventDefault();const{error}=await db.auth.updateUser({password:e.target.password.value});error?toast(error.message,1):(toast('Mot de passe modifié'),e.target.reset())};
 };
+
+// ---------- Documents PDF : factures et fiches d'inscription ----------
+const SITE_DESC='Plateforme numérique de révision, d’études et d’approfondissement : cours, audios, vidéos et images pour la remise à niveau des étudiants.';
+const SITE_CONTACT='Ambam, Ebolowa, Sud-Cameroun · B.P. 01 Ambam · '+CFG.mail+' · (+237) 689054370 / 678166542 / 693020377';
+const T_=v=>String(v??'').replace(/[\u202f\u00a0]/g,' ').replace(/[\u2018\u2019]/g,"'").replace(/[\u201c\u201d]/g,'"');
+const toData=async url=>{const b=await(await fetch(url)).blob();return new Promise((ok_,ko)=>{const r=new FileReader();r.onload=()=>ok_(r.result);r.onerror=ko;r.readAsDataURL(b)})};
+function pdfNew(){if(!window.jspdf){toast('Le module PDF n’est pas chargé : vérifiez votre connexion internet puis rechargez la page',1);return null}return new window.jspdf.jsPDF({unit:'mm',format:'a4'})}
+async function pdfHead(doc){
+  try{doc.addImage(await toData('icon-192.png'),'PNG',14,10,22,22)}catch(e){}
+  doc.setFont('helvetica','bold');doc.setFontSize(16);doc.setTextColor(138,101,8);doc.text('EFX STUDYPLACE',40,16);
+  doc.setFont('helvetica','normal');doc.setFontSize(8.5);doc.setTextColor(60);
+  const d=doc.splitTextToSize(T_(SITE_DESC),155),c=doc.splitTextToSize(T_(SITE_CONTACT),155);
+  doc.text(d,40,21);doc.text(c,40,21+d.length*3.7+1);
+  const y=Math.max(36,21+(d.length+c.length)*3.7+5);
+  doc.setDrawColor(184,134,11);doc.setLineWidth(.6);doc.line(14,y,196,y);doc.setTextColor(0);
+  return y+9;
+}
+function pdfFoot(doc){
+  const n=doc.getNumberOfPages(),t=new Date(),who=profile?.full_name||user?.email||'';
+  const txt=T_(`Imprimé par ${who} le ${t.toLocaleDateString('fr-FR')} à ${t.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}`);
+  for(let i=1;i<=n;i++){doc.setPage(i);doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(90);doc.text(txt,14,289,{align:'left'});doc.text(`Page ${i}/${n}`,196,289,{align:'right'})}
+}
+function pdfSec(doc,y,t){if(y>270){doc.addPage();y=20}doc.setFillColor(246,233,189);doc.rect(14,y-5,182,7,'F');doc.setFont('helvetica','bold');doc.setFontSize(10.5);doc.setTextColor(60,40,0);doc.text(T_(t),16,y);doc.setTextColor(0);return y+8}
+function pdfKV(doc,y,k,v){
+  doc.setFontSize(9.5);const lines=doc.splitTextToSize(T_(v||'—'),120),h=Math.max(6.5,lines.length*4.6+2);
+  if(y+h>280){doc.addPage();y=20}
+  doc.setDrawColor(215);doc.setLineWidth(.2);doc.rect(14,y-4.5,182,h);
+  doc.setFont('helvetica','bold');doc.text(doc.splitTextToSize(T_(k),56),16,y);
+  doc.setFont('helvetica','normal');doc.text(lines,74,y);return y+h;
+}
+async function invoicePdf(p,client){
+  const doc=pdfNew();if(!doc)return;
+  let y=await pdfHead(doc);
+  const yr=new Date(p.approved_at||p.created_at).getFullYear(),no=`FAC-${yr}-${String(p.id).padStart(5,'0')}`;
+  doc.setFont('helvetica','bold');doc.setFontSize(16);doc.setTextColor(0);doc.text('FACTURE / REÇU',14,y);doc.setFontSize(11);doc.text('N° '+no,196,y,{align:'right'});y+=7;
+  doc.setFont('helvetica','normal');doc.setFontSize(9.5);doc.text(T_('Date de validation : '+dtt(p.approved_at||p.created_at)),14,y);y+=9;
+  y=pdfSec(doc,y,'Client');
+  y=pdfKV(doc,y,'Nom',client.name);y=pdfKV(doc,y,'E-mail',client.email);y=pdfKV(doc,y,'Téléphone',client.phone);y+=5;
+  y=pdfSec(doc,y,'Détail');
+  const plan=ALLPLANS.find(x=>x.id===p.plan_id),des=p.kind==='candidature'?(p.label||'Frais de candidature'):'Abonnement '+(plan?plan.label.toLowerCase():'')+' à la plateforme EFX STUDYPLACE';
+  doc.setFont('helvetica','bold');doc.text('Désignation',16,y);doc.text('Qté',140,y);doc.text('Montant',194,y,{align:'right'});y+=2;doc.line(14,y,196,y);y+=5;
+  doc.setFont('helvetica','normal');const dl=doc.splitTextToSize(T_(des),118);doc.text(dl,16,y);doc.text('1',140,y);doc.text(T_(fmt(p.amount)),194,y,{align:'right'});y+=dl.length*4.6+3;
+  doc.line(14,y,196,y);y+=6;doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text('TOTAL PAYÉ',16,y);doc.text(T_(fmt(p.amount)),194,y,{align:'right'});y+=10;
+  doc.setFontSize(9.5);y=pdfSec(doc,y,'Paiement');
+  y=pdfKV(doc,y,'Moyen de paiement',p.method==='orange'?'Orange Money':'MTN Mobile Money');y=pdfKV(doc,y,'Référence de la transaction',p.tx_ref);y=pdfKV(doc,y,'Statut','Payée et validée');
+  pdfFoot(doc);doc.save(no+'.pdf');
+}
+const LBL={nom:'Nom',prenom:'Prénom',sexe:'Sexe',date_naissance:'Date de naissance',lieu_naissance:'Lieu de naissance',telephone:'Téléphone',cni:'N° CNI ou passeport',delivrance:'Date de délivrance',residence:'Lieu de résidence',adresse:'Adresse',email:'E-mail',situation:'Statut matrimonial',langue:'Première langue',nationalite:'Nationalité',region:'Région',departement:'Département',handicap:'Handicap',handicap_desc:'Description du handicap',filiere:'Filière',diplome:'Diplôme',serie:'Série ou spécialité',annee:'Année d’obtention',mention:'Mention',etablissement:'Établissement d’obtention',pays_diplome:'Pays d’obtention',centre_examen:'Centre d’examen',centre_depot:'Centre de dépôt',site:'Site de formation',pere:'Père ou tuteur',tel_pere:'Téléphone du père ou tuteur',mere:'Mère ou tutrice',tel_mere:'Téléphone de la mère ou tutrice',matieres:'Matières à renforcer',documents:'Pièces justificatives fournies',message:'Message'};
+const GROUPS=[['Informations personnelles',['nom','prenom','sexe','date_naissance','lieu_naissance','telephone','cni','delivrance','residence','adresse','email','situation','langue','nationalite','region','departement','handicap','handicap_desc']],['Informations académiques',['filiere','diplome','serie','annee','mention','etablissement','pays_diplome','matieres']],['Informations liées au concours',['centre_examen','centre_depot','site']],['Famille',['pere','tel_pere','mere','tel_mere']],['Pièces justificatives',['documents']]];
+async function fichePdf(a,mine){
+  const doc=pdfNew();if(!doc)return;
+  let y=await pdfHead(doc);
+  const d=a.data||{},lab=Object.assign({},LBL,d._labels||{}),title=a.kind==='concours'?'Concours ESTLC':a.kind==='repetition'?'Cours de répétition':(a.form_title||'Formation');
+  const no=`INS-${new Date(a.created_at).getFullYear()}-${String(a.id).padStart(5,'0')}`,y0=y;
+  doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text(T_('FICHE D’INSCRIPTION'),14,y);y+=8;
+  doc.setFontSize(11);doc.text(T_(title),14,y);y+=6;
+  doc.setFont('helvetica','normal');doc.setFontSize(9.5);
+  doc.text('N° '+no,14,y);y+=5;doc.text(T_('Déposée le '+dtt(a.created_at)),14,y);y+=5;
+  doc.text(T_('Statut : '+(a.status==='validated'?'validée le '+dtt(a.validated_at):a.status==='rejected'?'rejetée':'en attente de validation')),14,y);y+=5;
+  if(a.amount)doc.text(T_('Montant réglé : '+fmt(a.amount)),14,y);
+  doc.setDrawColor(150);doc.setLineWidth(.3);doc.rect(160,y0-6,36,46);
+  if(d.portrait_file){try{const r=await db.storage.from('docs').createSignedUrl(d.portrait_file,600);if(r.data){const im=await toData(r.data.signedUrl);doc.addImage(im,'JPEG',160.5,y0-5.5,35,45)}}catch(e){}}
+  else{doc.setFontSize(8);doc.setTextColor(120);doc.text('Photo',178,y0+17,{align:'center'});doc.setTextColor(0)}
+  y=Math.max(y+6,y0+46);
+  const shown=new Set();
+  const row=k=>{if(d[k]==null||d[k]==='')return;shown.add(k);y=pdfKV(doc,y,lab[k]||k,d[k])};
+  for(const[t,keys]of GROUPS){const ks=keys.filter(k=>d[k]!=null&&d[k]!=='');if(!ks.length)continue;y=pdfSec(doc,y+2,t);ks.forEach(row);y+=2}
+  const rest=Object.keys(d).filter(k=>!shown.has(k)&&!k.startsWith('_')&&!/_file$/.test(k));
+  if(rest.length){y=pdfSec(doc,y+2,a.kind==='formation'?'Informations':'Autres informations');rest.forEach(row)}
+  const files=Object.keys(d).filter(k=>/_file$/.test(k));if(files.length){y=pdfSec(doc,y+2,'Pièces jointes');y=pdfKV(doc,y,'Fichiers déposés',files.length+' fichier(s) enregistré(s) sur la plateforme')}
+  pdfFoot(doc);doc.save(no+'.pdf');
+}
+async function invMy(id){const p=_myPays.find(x=>x.id===id);if(p)invoicePdf(p,{name:profile?.full_name,email:user.email,phone:profile?.phone})}
+async function ficheMy(id){const a=_myApps.find(x=>x.id===id);if(a)fichePdf(a,true)}
+async function invAdmin(id){const p=_admPays.find(x=>x.id===id);if(p)invoicePdf(p,{name:p.profiles?.full_name,email:'',phone:p.profiles?.phone})}
+async function ficheAdmin(id){const a=_apps.find(x=>x.id===id);if(a)fichePdf(a)}
+async function decideApp(id,st){
+  const r=await db.rpc('decide_application',{aid:id,p_status:st});if(r.error)return toast(r.error.message,1);
+  for(const p of await q(db.from('payments').select('id').eq('application_id',id).eq('status','pending')))
+    st==='validated'?await db.rpc('approve_payment',{pid:p.id}):await db.from('payments').update({status:'rejected'}).eq('id',p.id);
+  toast(st==='validated'?'Candidature validée':'Candidature rejetée');route();
+}
 
 // ---------- Tableau de bord administrateur ----------
 const guess=n=>{const e=(String(n).split('?')[0].split('.').pop()||'').toLowerCase();
@@ -554,19 +752,19 @@ function csv(rows){const k=[...new Set(rows.flatMap(r=>Object.keys(r)))];const c
 R.admin=async(tab='contenus')=>{
   if(need())return;
   if(!admin)return set('<div class="card narrow"><h2>Accès réservé</h2><p>Connectez-vous avec le compte administrateur.</p><a class="btn" href="#/admin-login">Espace administrateur</a></div>');
-  const T=[['contenus','Contenus'],['accueil','Accueil'],['services','Services'],['import','Importer les cours'],['paiements','Paiements'],['abonnes','Abonnés'],['admins','Administrateurs'],['projets','Projets'],['chatbot','Chatbot'],['candidatures','Candidatures']];
+  const T=[['contenus','Contenus'],['cours','Ajouter un cours'],['catalogue','Catalogue'],['accueil','Accueil'],['services','Services'],['import','Importer les cours'],['paiements','Paiements'],['abonnes','Abonnés'],['admins','Administrateurs'],['utilisateurs','Utilisateurs'],['niveaux','Passages de niveau'],['formulaires','Formulaires'],['projets','Projets'],['chatbot','Chatbot'],['candidatures','Candidatures']];
   const head=`<h2>Tableau de bord</h2><div class="tabs">${T.map(([k,t])=>`<a class="btn ${k===tab?'':'alt'} sm" href="#/admin/${k}">${t}</a>`).join('')}</div>`;
   const dbtn=t=>x=>`<button class="btn sm danger" onclick="del('${t}',${x.id})">Supprimer</button>`;
   if(tab==='contenus'){
     const rows=await q(db.from('contents').select('*').order('id',{ascending:false}));
-    set(head+`<form id="af" class="card"><h3>Ajouter un contenu</h3><div class="fields"><label>Type<select name="kind"><option value="auto">Détecter automatiquement</option><option value="pdf">PDF</option><option value="word">Word</option><option value="excel">Excel</option><option value="powerpoint">PowerPoint</option><option value="audio">Audio</option><option value="video">Vidéo</option><option value="image">Image</option><option value="autre">Autre</option></select></label><label>Titre<input name="title" required></label><label>Section<select name="section"><option value="cours">Cours</option><option value="culture">Culture</option></select></label><label>Catégorie (culture)<select name="category"><option value="">Aucune</option><option value="livre">Livre</option><option value="roman">Roman</option><option value="video">Vidéo éducative</option><option value="epreuve">Épreuve</option><option value="autre">Autre</option></select></label><label>Année académique<select name="annee_academique"><option value="">Toutes les années</option>${YEARS.map(y=>`<option>${y}</option>`).join('')}</select></label><label>Filière<input name="filiere" placeholder="TTL, GLTCO, AMA, GSI"></label><label>Niveau<input name="niveau" placeholder="1 à 5"></label><label>Semestre<input name="semestre"></label><label>Code UE / EC<input name="ue_code"></label></div>
+    set(head+`<form id="af" class="card"><h3>Ajouter un contenu</h3><div class="fields"><label>Type<select name="kind"><option value="auto">Détecter automatiquement</option><option value="pdf">PDF</option><option value="word">Word</option><option value="excel">Excel</option><option value="powerpoint">PowerPoint</option><option value="audio">Audio</option><option value="video">Vidéo</option><option value="image">Image</option><option value="autre">Autre</option></select></label><label>Titre<input name="title" required></label><label>Section<select name="section"><option value="cours">Cours</option><option value="culture">Culture</option></select></label><label>Catégorie (culture)<select name="category"><option value="">Aucune</option><option value="livre">Livre</option><option value="roman">Roman</option><option value="video">Vidéo éducative</option><option value="epreuve">Épreuve</option><option value="autre">Autre</option></select></label><label>Visible par<select name="audience"><option value="tous">Tous</option><option value="etudiant">Étudiants</option><option value="eleve">Élèves</option></select></label><label>Niveaux ou classes concernés (facultatif, plusieurs possibles)<select name="classe" multiple size="6"><optgroup label="Étudiants">${[1,2,3,4,5].map(n=>`<option value="N${n}">Niveau ${n}</option>`).join('')}</optgroup><optgroup label="Lycée">${CLASSES.lycee.map(c=>`<option>${c}</option>`).join('')}</optgroup><optgroup label="Primaire">${CLASSES.primaire.map(c=>`<option>${c}</option>`).join('')}</optgroup></select></label><label><span><input type="checkbox" name="is_public"> Fichier public (visible par tous)</span></label><label>Année académique<select name="annee_academique"><option value="">Toutes les années</option>${YEARS.map(y=>`<option>${y}</option>`).join('')}</select></label><label>Filière<input name="filiere" placeholder="TTL, GLTCO, AMA, GSI"></label><label>Niveau<input name="niveau" placeholder="1 à 5"></label><label>Semestre<input name="semestre"></label><label>Code UE / EC<input name="ue_code"></label></div>
     <label>Description<textarea name="description" rows="2"></textarea></label><label><span><input type="checkbox" name="is_premium" checked> Réservé aux abonnés</span></label>
-    <label>Fichier (PDF, Word, Excel, PowerPoint, audio, vidéo, image… 50 Mo max)<input type="file" name="file"></label><label>ou lien externe (contenus gratuits uniquement)<input name="url" type="url"></label><button class="btn">Ajouter à la base</button></form>${tbl(rows,['id','kind','title','section','category','annee_academique','filiere','niveau','semestre','ue_code','is_premium','size_bytes'],dbtn('contents'))}`);
+    <label>Fichier (PDF, Word, Excel, PowerPoint, audio, vidéo, image… 50 Mo max)<input type="file" name="file"></label><label>ou lien externe (contenus gratuits uniquement)<input name="url" type="url"></label><button class="btn">Ajouter à la base</button></form>${tbl(rows,['id','kind','title','section','category','audience','classe','annee_academique','filiere','niveau','semestre','ue_code','is_premium','size_bytes'],dbtn('contents'))}`);
     $('#af').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target)),prem=v.is_premium==='on',file=v.file;let path=(v.url||'').trim();
       if(file&&file.size){path=(prem?'premium/':'free/')+Date.now()+'-'+file.name.replace(/[^\w.-]/g,'_');const u=await db.storage.from('cours').upload(path,file);if(u.error)return toast(u.error.message,1)}
       if(!path)return toast('Ajoutez un fichier ou un lien',1);
       if(prem&&/^https?:/.test(path))return toast('Un contenu premium doit être un fichier téléversé',1);
-      const{error}=await db.from('contents').insert({kind:v.kind==='auto'?guess(file&&file.size?file.name:path):v.kind,mime_type:file&&file.size?file.type||null:null,size_bytes:file&&file.size?file.size:null,title:v.title,description:v.description,section:v.section||'cours',category:v.category||null,annee_academique:v.annee_academique||null,filiere:v.filiere,niveau:v.niveau,semestre:v.semestre,ue_code:v.ue_code,file_path:path,is_premium:prem});
+      const{error}=await db.from('contents').insert({kind:v.kind==='auto'?guess(file&&file.size?file.name:path):v.kind,mime_type:file&&file.size?file.type||null:null,size_bytes:file&&file.size?file.size:null,title:v.title,description:v.description,section:v.section||'cours',category:v.category||null,audience:v.audience||'tous',classe:[...e.target.querySelector('[name=classe]').selectedOptions].map(o=>o.value).join(',')||null,is_public:v.is_public==='on',annee_academique:v.annee_academique||null,filiere:v.filiere,niveau:v.niveau,semestre:v.semestre,ue_code:v.ue_code,file_path:path,is_premium:prem});
       error?toast(error.message,1):(toast('Contenu ajouté'),route())};
   }else if(tab==='accueil'){
     const sl=await q(db.from('slides').select('*').order('sort_order').order('id')),an=await q(db.from('announcements').select('*').order('id',{ascending:false}));
@@ -586,8 +784,8 @@ R.admin=async(tab='contenus')=>{
     set(head+`<form id="sv" class="card"><h3>Ajouter un service ou une offre</h3><div class="fields"><label>Catégorie<input name="category" required></label><label>Titre<input name="title" required></label></div><label>Description<textarea name="description" rows="2"></textarea></label><button class="btn">Ajouter à la base</button></form>${tbl(rows,['id','category','title','description'],dbtn('services'))}`);
     $('#sv').onsubmit=async e=>{e.preventDefault();const{error}=await db.from('services').insert(Object.fromEntries(new FormData(e.target)));error?toast(error.message,1):(toast('Service ajouté'),route())};
   }else if(tab==='paiements'){
-    const rows=(await q(db.from('payments').select('*,profiles(full_name,phone)').order('id',{ascending:false}))).map(x=>({...x,client:`${x.profiles?.full_name||''} ${x.profiles?.phone||''}`}));
-    set(head+'<p class="small">Vérifiez la référence dans vos SMS Mobile Money avant de valider.</p>'+tbl(rows,['created_at','client','plan_id','amount','method','tx_ref','status'],x=>x.status==='pending'?`<button class="btn sm" onclick="payAct(${x.id},true)">Valider</button> <button class="btn sm danger" onclick="payAct(${x.id},false)">Rejeter</button>`:''));
+    const rows=(await q(db.from('payments').select('*,profiles(full_name,phone)').order('id',{ascending:false})));_admPays=rows;
+    set(head+'<p class="small">Vérifiez la référence dans vos SMS Mobile Money avant de valider. Les paiements liés à une candidature se valident aussi depuis l’onglet Candidatures.</p>'+tbl(rows.map(x=>({...x,client:`${x.profiles?.full_name||''} ${x.profiles?.phone||''}`,objet:x.label||x.plan_id})),['created_at','client','objet','amount','method','tx_ref','status'],x=>x.status==='pending'?`<button class="btn sm" onclick="payAct(${x.id},true)">Valider</button> <button class="btn sm danger" onclick="payAct(${x.id},false)">Rejeter</button>`:x.status==='approved'?`<button class="btn sm alt" onclick="invAdmin(${x.id})">Facture (PDF)</button>`:''));
   }else if(tab==='import'){
     set(head+`<div class="card"><h3>Importer les cours du catalogue</h3><p>Sélectionnez d’un coup vos fichiers nommés comme avant (<b>EBTTL 111.pdf</b>, <b>EBGLTCO 211.pdf</b>…). Chaque fichier est rangé à la bonne place du catalogue pour l’année choisie. Astuce : si le nom contient l’année (<b>EBTTL 111 2024-2025.pdf</b>), c’est cette année qui est utilisée.</p><form id="im"><label>Année académique<select id="imy">${YEARS.map(y=>`<option>${y}</option>`).join('')}</select></label><label>Fichiers PDF<input type="file" id="imf" accept=".pdf,application/pdf" multiple required></label><label><span><input type="checkbox" id="imp" checked> Réservé aux abonnés</span></label><button class="btn">Importer</button></form><div id="res" class="small"></div></div>`);
     $('#im').onsubmit=async e=>{e.preventDefault();const prem=$('#imp').checked,out=[],have=new Set((await q(db.from('contents').select('ue_code,annee_academique'))).map(x=>x.annee_academique+'|'+x.ue_code));
@@ -607,9 +805,28 @@ R.admin=async(tab='contenus')=>{
         $('#res').innerHTML=out.join('<br>');
       }
       $('#res').innerHTML=out.join('<br>')+'<br><b>Terminé.</b>'};
+  }else if(tab==='formulaires'){
+    const fr=await q(db.from('forms').select('*').order('id',{ascending:false})),fee=(await q(db.from('settings').select('*').eq('key','fee_repetition')))[0]?.value||'0';
+    set(head+`<form id="fe" class="card"><h3>Paiement des cours de répétition</h3><label>Montant en FCFA (0 = pas de paiement)<input name="fee" type="number" min="0" value="${esc(fee)}"></label><button class="btn sm">Enregistrer</button></form>
+    <form id="fb" class="card"><h3>Créer un formulaire de formation</h3><p class="small">Il apparaît comme un onglet dans la page Candidature. Les réponses arrivent dans l’onglet Candidatures.</p><div class="fields"><label>Titre<input name="title" required></label><label>Paiement en FCFA (0 = aucun)<input name="payment_amount" type="number" min="0" value="0"></label></div><label>Description<textarea name="description" rows="2"></textarea></label><h4>Champs du formulaire</h4><div id="ff"></div><button type="button" class="btn alt sm" id="adf">Ajouter un champ</button> <button class="btn">Enregistrer le formulaire</button></form>
+    ${tbl(fr.map(x=>({...x,etat:x.is_active?'actif':'masqué',champs:(x.fields||[]).length,prix:x.payment_amount})),['id','title','champs','prix','etat'],x=>`<button class="btn sm alt" onclick="toggleHome('forms',${x.id},${!x.is_active})">${x.is_active?'Masquer':'Afficher'}</button> <button class="btn sm danger" onclick="del('forms',${x.id})">Supprimer</button>`)}`);
+    $('#fe').onsubmit=async e=>{e.preventDefault();const{error}=await db.from('settings').upsert({key:'fee_repetition',value:String(Math.max(0,+e.target.fee.value||0))});error?toast(error.message,1):toast('Montant enregistré')};
+    let F=[{label:'',type:'text',options:'',required:true}];
+    const TY=[['text','Texte court'],['textarea','Texte long'],['select','Liste de choix'],['date','Date'],['number','Nombre'],['tel','Téléphone'],['email','E-mail'],['file','Fichier'],['photo','Photo de portrait']];
+    const draw=()=>{$('#ff').innerHTML=F.map((x,i)=>`<div class="card"><div class="fields"><label>Libellé<input data-i="${i}" data-f="label" value="${esc(x.label)}" placeholder="Ex. Nom de l’entreprise"></label><label>Type<select data-i="${i}" data-f="type">${TY.map(([v,t])=>`<option value="${v}" ${v===x.type?'selected':''}>${t}</option>`).join('')}</select></label>${x.type==='select'?`<label>Choix (séparés par des virgules)<input data-i="${i}" data-f="options" value="${esc(x.options)}"></label>`:''}</div><label class="chk"><input type="checkbox" data-i="${i}" data-f="required" ${x.required?'checked':''}><span>Obligatoire</span></label><button type="button" class="btn sm danger" data-del="${i}">Supprimer ce champ</button></div>`).join('')};
+    draw();
+    $('#ff').oninput=$('#ff').onchange=e=>{const i=e.target.dataset.i;if(i==null)return;const f=e.target.dataset.f;F[i][f]=e.target.type==='checkbox'?e.target.checked:e.target.value;if(f==='type'&&e.type==='change')draw()};
+    $('#ff').onclick=e=>{const d=e.target.dataset.del;if(d!=null){F.splice(+d,1);draw()}};
+    $('#adf').onclick=()=>{F.push({label:'',type:'text',options:'',required:true});draw()};
+    $('#fb').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target));
+      const fl_=F.filter(x=>x.label.trim());if(!fl_.length)return toast('Ajoutez au moins un champ avec un libellé',1);
+      if(fl_.filter(x=>x.type==='photo').length>1)return toast('Un seul champ « Photo de portrait » est possible',1);
+      const fields=fl_.map((x,i)=>({name:(norm(x.label).replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,'')||'champ')+'_'+(i+1),label:x.label.trim(),type:x.type,required:!!x.required,options:x.type==='select'?x.options.split(',').map(o=>o.trim()).filter(Boolean):undefined}));
+      if(fields.some(x=>x.type==='select'&&!x.options.length))return toast('Indiquez les choix de la liste',1);
+      const{error}=await db.from('forms').insert({title:v.title,description:v.description||null,fields,payment_amount:Math.max(0,+v.payment_amount||0)});error?toast(error.message,1):(toast('Formulaire créé'),route())};
   }else if(tab==='admins'){
     const rows=((await db.rpc('list_admins')).data||[]).map(x=>({...x,principal:x.email.toLowerCase()===CFG.mail?'oui':''}));
-    set(head+`<form id="ad" class="card narrow"><h3>Ajouter un administrateur</h3><p class="small">La personne doit d’abord créer un compte sur le site et confirmer son e-mail. Elle aura les mêmes droits que vous (paiements, candidatures, contenus).</p><input name="email" type="email" placeholder="E-mail de la personne" required><button class="btn">Ajouter</button></form>`+tbl(rows,['email','created_at','principal'],x=>x.principal||x.user_id===user.id?'':`<button class="btn sm danger" onclick="rmAdmin('${x.user_id}')">Retirer</button>`));
+    set(head+`<form id="ad" class="card narrow"><h3>Ajouter un administrateur</h3><p class="small">La personne doit d’abord créer un compte sur le site et confirmer son e-mail. Elle aura les mêmes droits que vous (paiements, candidatures, contenus).</p><input name="email" type="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="E-mail de la personne" required><button class="btn">Ajouter</button></form>`+tbl(rows,['email','created_at','principal'],x=>x.principal||x.user_id===user.id?'':`<button class="btn sm danger" onclick="rmAdmin('${x.user_id}')">Retirer</button>`));
     $('#ad').onsubmit=async e=>{e.preventDefault();const{error}=await db.rpc('add_admin',{p_email:e.target.email.value});error?toast(error.message,1):(toast('Administrateur ajouté'),route())};
   }else if(tab==='projets'){
     const rows=(await q(db.from('projects').select('*').order('id',{ascending:false}))).map(x=>({...x,avancement:x.tasks_done+'/'+x.tasks_total}));
@@ -622,32 +839,99 @@ R.admin=async(tab='contenus')=>{
       const r=await db.from('faq').insert({question:v.question,answer:v.answer});if(r.error)return toast(r.error.message,1);
       await db.from('chat_logs').update({matched:true}).eq('question',v.question);toast('EFX a appris cette réponse');route()});
     $('#fq2').onsubmit=async e=>{e.preventDefault();const{error}=await db.from('faq').insert(Object.fromEntries(new FormData(e.target)));error?toast(error.message,1):(toast('Ajouté'),route())};
+  }else if(tab==='cours'){
+    await loadCatalog(true);
+    const have=(await q(db.from('catalog').select('id').limit(1))).length>0;
+    if(!have)set(head+'<div class="card"><p>Importez d’abord le catalogue de départ dans l’onglet <a href="#/admin/catalogue">Catalogue</a>, puis revenez ajouter vos cours.</p></div>');
+    else{
+      const fl=[...new Set(CAT.flatMap(c=>c[0]))];
+      set(head+`<form id="ac" class="card"><h3>Ajouter un cours au tableau</h3><p class="small">Le cours apparaît aussitôt dans le tableau de la page Cours, selon l’année, la filière, le niveau, le semestre, le code de l’UE et l’intitulé. Si le code existe déjà pour cette filière, son intitulé est mis à jour.</p><div class="fields"><label>Année académique<select name="annee">${YEARS.map(y=>`<option>${y}</option>`).join('')}</select></label><label>Filière<input name="filiere" list="fl" required placeholder="TTL, GLTCO, AMA…"></label><datalist id="fl">${fl.map(f=>`<option>${f}</option>`).join('')}</datalist><label>Niveau<select name="niveau" id="acn">${[1,2,3,4,5].map(n=>`<option value="${n}">Niveau ${n}</option>`).join('')}</select></label><label>Semestre<select name="semestre" id="acs"></select></label><label>Code UE<input name="ue" required placeholder="UE11"></label><label>Code EC (3 chiffres)<input name="code" required pattern="[0-9]{3}" inputmode="numeric" placeholder="111"></label></div><label>Intitulé du cours<input name="title" required></label><label>Fichier du cours<input type="file" name="file" required></label><label><span><input type="checkbox" name="prem" checked> Réservé aux abonnés</span></label><button class="btn">Ajouter le cours</button></form>`);
+      const smf=()=>{const n=+$('#acn').value;$('#acs').innerHTML=[2*n-1,2*n].map(x=>`<option value="${x}">Semestre ${ROM[x]}</option>`).join('')};
+      $('#acn').onchange=smf;smf();
+      $('#ac').onsubmit=async e=>{e.preventDefault();
+        const v=Object.fromEntries(new FormData(e.target)),f=v.filiere.trim().toUpperCase(),sm=+v.semestre,n=+v.niveau,file=v.file,ec='EC'+f+v.code,prem=v.prem==='on',btn=e.target.querySelector('button');
+        if(!file||!file.size)return toast('Choisissez le fichier du cours',1);
+        btn.disabled=true;
+        try{
+          const ex=(await q(db.from('catalog').select('id').eq('filiere',f).eq('code',v.code)))[0];
+          const row={filiere:f,niveau:n,semestre:sm,ue:v.ue.trim(),code:v.code,title:v.title.trim()};
+          const r=ex?await db.from('catalog').update(row).eq('id',ex.id):await db.from('catalog').insert(row);if(r.error)throw r.error;
+          const ext=(file.name.split('.').pop()||'pdf').toLowerCase().replace(/[^a-z0-9]/g,''),path=(prem?'premium/':'free/')+'catalogue/'+v.annee+'/'+f+'-'+v.code+'.'+ext;
+          const u=await db.storage.from('cours').upload(path,file,{upsert:true});if(u.error)throw u.error;
+          await db.from('contents').delete().eq('ue_code',ec).eq('annee_academique',v.annee);
+          const c=await db.from('contents').insert({kind:guess(file.name),title:v.title.trim(),filiere:f,niveau:String(n),semestre:'Semestre '+ROM[sm],ue_code:ec,annee_academique:v.annee,file_path:path,mime_type:file.type||null,size_bytes:file.size,is_premium:prem,section:'cours',audience:'etudiant'});
+          if(c.error)throw c.error;
+          toast('Cours ajouté au tableau ('+ec+', '+v.annee+')');await loadCatalog(true);route();
+        }catch(x){toast(x.message||'Échec de l’ajout',1);btn.disabled=false}};
+    }
+  }else if(tab==='catalogue'){
+    await loadCatalog(true);
+    const have=(await q(db.from('catalog').select('id').limit(1))).length>0;
+    if(!have){
+      set(head+'<div class="card"><h3>Catalogue des cours</h3><p>Le catalogue n’est pas encore dans la base. Importez le catalogue de départ (environ 500 lignes) pour pouvoir modifier les intitulés et ajouter des cours.</p><button class="btn" id="seed">Importer le catalogue de départ</button></div>');
+      $('#seed').onclick=e=>{e.target.disabled=true;seedCatalog()};
+    }else{
+      const fl=filsFor(_cn);if(!fl.includes(_cf))_cf=fl[0];
+      const rowsHtml=CAT.filter(c=>Math.ceil(c[1]/2)===_cn&&c[0].includes(_cf)).flatMap(([fs,sm,rows])=>rows.map(r=>`<tr><td>${ROM[sm]}</td><td>${esc(r[0])}</td><td>EC${_cf}${r[1]}</td><td><input value="${esc(r[2])}" onchange="catEdit(${r[3]},this.value)" style="min-width:14rem"></td><td><button class="btn sm danger" onclick="catDel(${r[3]})">Supprimer</button></td></tr>`)).join('');
+      set(head+`<div class="row"><label>Niveau<select id="cgn">${[1,2,3,4,5].map(n=>`<option value="${n}" ${n===_cn?'selected':''}>Niveau ${n}</option>`).join('')}</select></label><label>Filière<select id="cgf">${fl.map(f=>`<option ${f===_cf?'selected':''}>${f}</option>`).join('')}</select></label></div><p class="small">Vous seul pouvez modifier les intitulés : la modification est enregistrée quand vous quittez la case.</p><div class="tw"><table><tr><th>Sem.</th><th>UE</th><th>EC</th><th>Intitulé</th><th>Action</th></tr>${rowsHtml||'<tr><td colspan="5">Aucun cours.</td></tr>'}</table></div>`);
+      $('#cgn').onchange=()=>{_cn=+$('#cgn').value;route()};$('#cgf').onchange=()=>{_cf=$('#cgf').value;route()};
+    }
+  }else if(tab==='utilisateurs'){
+    _users=(await db.rpc('list_users')).data||[];
+    const rows=_users.map(x=>({...x,identifiant:String(x.email).endsWith('@'+PSEUDO)?'tél. '+x.phone:x.email,profil:x.statut==='eleve'?`Élève · ${x.categorie||''} ${x.classe||''}`.trim():x.statut==='enseignant'?'Enseignant':`Étudiant · N${x.niveau||'?'} ${x.filiere||''}`.trim(),etat:x.is_suspended?'suspendu':'actif'}));
+    set(head+'<div id="detail"></div><p class="small">Profil : changer le statut, la classe, le niveau ou la filière. Mot de passe : donner un mot de passe provisoire (utile aux élèves, qui n’ont pas d’e-mail de récupération). Un compte suspendu est déconnecté et ne peut plus agir ; ses données sont conservées.</p>'+tbl(rows,['full_name','identifiant','profil','created_at','etat'],x=>x.is_adm?'administrateur':`<button class="btn sm alt" onclick="editUser('${x.id}')">Profil</button> <button class="btn sm alt" onclick="resetPw('${x.id}')">Mot de passe</button> <button class="btn sm ${x.is_suspended?'':'danger'}" onclick="suspend('${x.id}',${!x.is_suspended})">${x.is_suspended?'Réactiver':'Suspendre'}</button>`));
+  }else if(tab==='niveaux'){
+    const rows=await q(db.from('level_requests').select('*,profiles(full_name,phone)').order('id',{ascending:false}));
+    set(head+'<p class="small">Consultez le relevé avant de valider. En validant, le niveau (et la filière) de l’étudiant sont mis à jour.</p>'+tbl(rows.map(x=>({...x,etudiant:`${x.profiles?.full_name||''} ${x.profiles?.phone||''}`,passage:`niveau ${x.from_level} vers ${x.to_level}`})),['created_at','etudiant','passage','to_filiere','year','status'],x=>`<button class="btn sm alt" onclick="showReleve('${esc(x.file_path)}')">Voir le relevé</button>${x.status==='pending'?` <button class="btn sm" onclick="decideLevel(${x.id},true)">Valider</button> <button class="btn sm danger" onclick="decideLevel(${x.id},false)">Refuser</button>`:''}`));
   }else if(tab==='abonnes'){
     const rows=(await q(db.from('subscriptions').select('*,profiles(full_name,phone)').order('ends_at',{ascending:false}))).map(x=>({...x,client:`${x.profiles?.full_name||''} ${x.profiles?.phone||''}`,etat:new Date(x.ends_at)>new Date()?'actif':'expiré'}));
     set(head+tbl(rows,['client','plan_id','starts_at','ends_at','etat']));
   }else{
     _apps=await q(db.from('applications').select('*').order('id',{ascending:false}));
-    const rows=_apps.map(x=>({id:x.id,created_at:x.created_at,type:x.kind,nom:`${x.data.nom||''} ${x.data.prenom||''}`,telephone:x.data.telephone,email:x.data.email,filiere:x.data.filiere,centre:x.data.centre_examen}));
-    set(head+`<div id="detail"></div><button class="btn alt sm" id="ex">Exporter tout en CSV</button>`+tbl(rows,['created_at','type','nom','telephone','email','filiere','centre'],x=>`<button class="btn sm" onclick="showApp(${x.id})">Détails</button> <button class="btn sm danger" onclick="del('applications',${x.id})">Supprimer</button>`));
-    $('#ex').onclick=()=>csv(_apps.map(x=>({id:x.id,date:x.created_at,type:x.kind,...x.data})));
+    const rows=_apps.map(x=>({id:x.id,created_at:x.created_at,type:x.form_title||x.kind,nom:`${x.data.nom||''} ${x.data.prenom||''}`.trim()||x.data.full_name||'',telephone:x.data.telephone,email:x.data.email,montant:x.amount||'',statut:{pending:'en attente',validated:'validée',rejected:'rejetée'}[x.status]}));
+    set(head+`<div id="detail"></div><button class="btn alt sm" id="ex">Exporter tout en CSV</button>`+tbl(rows,['created_at','type','nom','telephone','email','montant','statut'],x=>{const a=_apps.find(z=>z.id===x.id);return `<button class="btn sm alt" onclick="showApp(${x.id})">Détails</button>${a.status!=='validated'?` <button class="btn sm" onclick="decideApp(${x.id},'validated')">Valider</button>`:` <button class="btn sm alt" onclick="ficheAdmin(${x.id})">Fiche (PDF)</button>`}${a.status==='pending'?` <button class="btn sm danger" onclick="decideApp(${x.id},'rejected')">Rejeter</button>`:''} <button class="btn sm danger" onclick="del('applications',${x.id})">Supprimer</button>`}));
+    $('#ex').onclick=()=>csv(_apps.map(x=>({id:x.id,date:x.created_at,type:x.kind,statut:x.status,...x.data})));
   }
 };
 async function toggleHome(t,id,v){const{error}=await db.from(t).update({is_active:v}).eq('id',id);error?toast(error.message,1):route()}
 async function delHome(t,id){if(!confirm('Supprimer définitivement cet élément ?'))return;const r=(_home[t]||[]).find(x=>x.id===id);
   if(r&&r.image_path)await db.storage.from('site').remove([r.image_path]);const{error}=await db.from(t).delete().eq('id',id);error?toast(error.message,1):route()}
+async function catEdit(id,v){if(!v.trim())return;const{error}=await db.from('catalog').update({title:v.trim()}).eq('id',id);error?toast(error.message,1):toast('Intitulé modifié')}
+async function catDel(id){if(!confirm('Retirer ce cours du tableau ? Les fichiers déjà ajoutés restent dans la base.'))return;const{error}=await db.from('catalog').delete().eq('id',id);error?toast(error.message,1):(await loadCatalog(true),route())}
+async function seedCatalog(){
+  const rows=CAT0.flatMap(([fs,sm,rs])=>fs.flatMap(f=>rs.map(r=>({filiere:f,niveau:Math.ceil(sm/2),semestre:sm,ue:r[0],code:r[1],title:r[2]}))));
+  for(let i=0;i<rows.length;i+=200){const{error}=await db.from('catalog').insert(rows.slice(i,i+200));if(error)return toast(error.message,1)}
+  toast('Catalogue importé ('+rows.length+' cours)');await loadCatalog(true);route();
+}
+function editUser(id){
+  const u=_users.find(x=>x.id===id),f=$('#detail');
+  f.innerHTML=`<form id="eu" class="card"><h3>Profil de ${esc(u.full_name)}</h3><div class="fields"><label>Statut<select name="statut"><option value="etudiant">Étudiant</option><option value="eleve">Élève</option><option value="enseignant">Enseignant</option></select></label><label>Catégorie<select name="categorie"><option value="">—</option><option value="universite">Université</option><option value="lycee">Lycée</option><option value="primaire">Primaire</option></select></label><label>Classe (élèves)<input name="classe" placeholder="6e, Terminale, CM2…"></label><label>Niveau (étudiants)<select name="niveau"><option value="">—</option>${[1,2,3,4,5].map(n=>`<option value="${n}">${n}</option>`).join('')}</select></label><label>Filière (étudiants)<input name="filiere" placeholder="TTL, GLTCO, AMA…"></label></div><button class="btn">Enregistrer</button></form>`;
+  const F=$('#eu');F.statut.value=u.statut||'etudiant';F.categorie.value=u.categorie||'';F.classe.value=u.classe||'';F.niveau.value=u.niveau||'';F.filiere.value=u.filiere||'';
+  F.onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(F));
+    const{error}=await db.rpc('admin_set_profile',{p_uid:id,p_statut:v.statut,p_categorie:v.categorie,p_classe:v.classe.trim(),p_niveau:v.niveau?+v.niveau:null,p_filiere:v.filiere.trim().toUpperCase()});
+    error?toast(error.message,1):(toast('Profil modifié'),route())};
+  f.scrollIntoView({behavior:'smooth'});
+}
+async function resetPw(id){
+  const pw=prompt('Nouveau mot de passe provisoire (8 caractères minimum). Communiquez-le ensuite à la personne :');if(!pw)return;
+  const{error}=await db.rpc('admin_reset_password',{p_uid:id,p_password:pw});error?toast(error.message,1):toast('Mot de passe modifié. Communiquez-le à l’utilisateur.');
+}
+async function suspend(id,on){if(!confirm(on?'Suspendre ce compte ? L’utilisateur sera déconnecté et ne pourra plus agir sur le site.':'Réactiver ce compte ?'))return;const{error}=await db.rpc('set_suspended',{p_uid:id,p_on:on});error?toast(error.message,1):(toast(on?'Compte suspendu':'Compte réactivé'),route())}
+async function showReleve(p){const r=await db.storage.from('docs').createSignedUrl(p,3600);r.error?toast('Relevé indisponible',1):window.open(r.data.signedUrl,'_blank','noopener')}
+async function decideLevel(id,ok_){const{error}=await db.rpc('decide_level',{rid:id,accept:ok_});error?toast(error.message,1):(toast(ok_?'Passage validé':'Demande refusée'),route())}
 async function rmAdmin(id){if(!confirm('Retirer les droits d’administrateur à ce compte ?'))return;const{error}=await db.rpc('remove_admin',{p_user:id});error?toast(error.message,1):(toast('Administrateur retiré'),route())}
 async function showApp(id){
   const a=_apps.find(x=>x.id===id);
-  const rows=await Promise.all(Object.entries(a.data).map(async([k,v])=>{
+  const rows=await Promise.all(Object.entries(a.data).filter(([k])=>!k.startsWith('_')).map(async([k,v])=>{
     if(/_file$/.test(k)){const r=await db.storage.from('docs').createSignedUrl(v,3600);v=r.data?`<a target="_blank" rel="noopener" href="${r.data.signedUrl}">Ouvrir le fichier</a>`:'(indisponible)'}else v=esc(v);
-    return `<tr><th>${esc(k)}</th><td>${v}</td></tr>`}));
+    return `<tr><th>${esc((a.data._labels||{})[k]||LBL[k]||k)}</th><td>${v}</td></tr>`}));
   $('#detail').innerHTML=`<div class="card"><h3>Candidature n° ${id} (${esc(a.kind)})</h3><div class="tw"><table>${rows.join('')}</table></div></div>`;
   $('#detail').scrollIntoView({behavior:'smooth'});
 }
 
 // ---------- Assistant EFX ----------
 const KB=[
-['abonnement abonner prix tarif tarifs mensuel trimestriel semestriel annuel cout formule formules',`Nos formules : ${PLANS.map(p=>p.label+' '+fmt(p.price)).join(', ')}. <a href="#/abonnement">Voir les abonnements</a>`],
+['abonnement abonner prix tarif tarifs mensuel trimestriel semestriel annuel cout formule formules',`Étudiants : ${PLANS.map(p=>p.label+' '+fmt(p.price)).join(', ')}. Élèves : ${PLANS_ELEVE.map(p=>p.label+' '+fmt(p.price)).join(', ')}. <a href="#/abonnement">Voir les abonnements</a>`],
 ['payer paiement paye mtn orange mobile money reference valider validation',`Pour payer : envoyez le montant par MTN Mobile Money au ${CFG.mtn} ou par Orange Money au ${CFG.om}, puis saisissez la référence reçue par SMS sur la page <a href="#/abonnement">Abonnement</a>. L’administrateur vérifie et active votre accès.`],
 ['inscription inscrire compte creer connexion connecter mot passe',`Créez votre compte depuis <a href="#/connexion">Se connecter</a> (nom, téléphone, photo, e-mail, mot de passe), puis confirmez votre e-mail.`],
 ['cours pdf annee academique filiere niveau semestre ue',`Rendez-vous sur <a href="#/cours">Cours</a> : choisissez l’année académique, le niveau et la filière. Vous pouvez aussi utiliser <a href="#/recherche">la recherche</a>.`],
@@ -794,9 +1078,17 @@ $('#em').onclick=e=>{const v=e.target.dataset&&e.target.dataset.q;if(v)ask(v)};
 $('#ef').onsubmit=e=>{e.preventDefault();const v=$('#ei').value.trim();if(v){$('#ei').value='';ask(v)}};
 
 // ---------- Démarrage (après la définition de toutes les pages) ----------
+(()=>{const h=location.hash;if(/error_code=|error_description=/.test(h)){const p=new URLSearchParams(h.replace(/^#\/?/,'')),c=p.get('error_code'),d=(p.get('error_description')||'').replace(/\+/g,' ');
+  history.replaceState(null,'',location.pathname+'#/connexion');
+  setTimeout(()=>toast(c==='otp_expired'?'Ce lien a expiré ou a déjà été utilisé. Demandez-en un nouveau avec « Mot de passe oublié ? »':(d||'Lien invalide'),1,10000),400)}})();
 if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
+if(devAdmin())document.querySelectorAll('.adm-link').forEach(a=>a.hidden=false);
 route();
-if(db)db.auth.onAuthStateChange((e,s)=>{if(e==='TOKEN_REFRESHED')return;setTimeout(async()=>{await setUser(s?.user);if(e==='PASSWORD_RECOVERY')location.hash='#/nouveau-mot-de-passe';else route()},0)});
+if(db)db.auth.onAuthStateChange((e,s)=>{
+  if(e==='TOKEN_REFRESHED')return;
+  const id=s?.user?.id||null;
+  if(e==='SIGNED_IN'&&id&&id===_uid)return; // simple retour sur l'onglet (ex. après le choix d'un fichier) : on ne recharge pas la page
+  setTimeout(async()=>{_uid=id;await setUser(s?.user);if(e==='PASSWORD_RECOVERY')location.hash='#/nouveau-mot-de-passe';else route()},0)});
 </script>
 </body>
 </html>
