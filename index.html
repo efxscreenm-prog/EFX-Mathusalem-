@@ -10,16 +10,20 @@
 <meta name="theme-color" content="#b8860b">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="EFX Study">
+<script>try{var t=localStorage.getItem('efx_theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
 <style>
 :root{--gold:#b8860b;--gold-d:#8a6508;--soft:#f6e9bd;--ink:#2a2012;--paper:#fbf7ec;--card:#fff;--line:#e4d7ae;--ok:#1b7a3a;--ko:#b3261e}
-@media(prefers-color-scheme:dark){:root{--gold:#d4a017;--gold-d:#e8b92e;--soft:#3a2f10;--ink:#f4ecd6;--paper:#17130a;--card:#211c10;--line:#3d3421}}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--gold:#d4a017;--gold-d:#e8b92e;--soft:#3a2f10;--ink:#f4ecd6;--paper:#17130a;--card:#211c10;--line:#3d3421}}
+:root[data-theme="dark"]{--gold:#d4a017;--gold-d:#e8b92e;--soft:#3a2f10;--ink:#f4ecd6;--paper:#17130a;--card:#211c10;--line:#3d3421}
+:root[data-theme="dark"]{color-scheme:dark}:root[data-theme="light"]{color-scheme:light}
 *{box-sizing:border-box}
 html{scroll-padding-top:70px}
 body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif}
 h1,h2,h3{font-family:Georgia,"Times New Roman",serif;line-height:1.2;margin:.2em 0 .5em}
 a{color:var(--gold-d)}
 header{position:sticky;top:0;z-index:5;background:var(--ink);color:var(--paper);display:flex;align-items:center;gap:.8rem;padding:.6rem 1rem}
-@media(prefers-color-scheme:dark){header{background:#0d0a04}}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]) header{background:#0d0a04}}
+:root[data-theme="dark"] header{background:#0d0a04}
 header .brand{display:flex;align-items:center;gap:.6rem;color:#f6e9bd;text-decoration:none;font:700 1.15rem Georgia,serif}
 header img{height:34px;width:34px;border-radius:50%;object-fit:cover}
 #burger{display:none;margin-left:auto;background:none;border:1px solid #f6e9bd;color:#f6e9bd;border-radius:6px;font-size:1.3rem;padding:.1rem .6rem}
@@ -73,6 +77,11 @@ progress{width:100%;height:.7rem;accent-color:var(--gold)}
 #ef{display:flex;gap:.4rem;padding:.5rem;border-top:1px solid var(--line)}#ef input{flex:1}
 .chips{display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.4rem}.chips button{border:1px solid var(--gold);background:none;color:var(--gold-d);border-radius:99px;padding:.15rem .6rem;cursor:pointer;font-size:.8rem}
 .pc p{margin:.3rem 0}.upd{border-left:4px solid var(--gold)}
+.ib{position:relative;background:none;border:1px solid rgba(246,233,189,.5);color:#f6e9bd;border-radius:8px;width:36px;height:36px;display:inline-grid;place-items:center;font-size:1.05rem;cursor:pointer;text-decoration:none;flex:none}
+.ib[hidden]{display:none}
+.bd{position:absolute;top:-7px;right:-7px;background:var(--ko);color:#fff;border-radius:99px;font:700 .65rem system-ui;padding:.05rem .33rem}
+.nocopy{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}.nocopy img{pointer-events:none;max-width:100%;border-radius:8px}
+@media(max-width:480px){header{gap:.45rem;padding:.5rem .6rem}header .brand{font-size:.95rem}header .brand img{height:28px;width:28px}.ib{width:32px;height:32px}}
 fieldset{border:1px solid var(--line);border-radius:12px;padding:1rem;margin:0 0 1rem;min-width:0}
 legend{font:700 1.05rem Georgia,serif;padding:0 .4rem}
 .chk{display:flex;gap:.6rem;align-items:flex-start;font-weight:400}.chk input{margin-top:.3rem;flex:none}
@@ -97,9 +106,12 @@ footer{text-align:center;padding:1.5rem 1rem;border-top:1px solid var(--line);fo
   <nav id="nav">
     <a href="#/accueil">Accueil</a><a href="#/cours">Cours</a><a href="#/culture">Culture</a><a href="#/projets">Projets</a><a href="#/services">Produits et services</a><a href="#/abonnement">Abonnement</a><a href="#/candidature">Candidature</a><a href="#/apropos">À propos</a><a href="#/contact">Contact</a><a href="#/connexion">Se connecter</a>
   </nav>
+  <a id="bell" class="ib" href="#/messages" hidden aria-label="Messagerie"></a>
+  <button id="thm" class="ib" aria-label="Mode sombre ou clair" type="button"></button>
   <a id="me" class="me" href="#/compte"></a>
 </header>
 <div id="lvl"></div>
+<div id="bn" class="card" hidden style="max-width:1000px;margin:.5rem auto"></div>
 <main id="app">
   <section class="hero"><img src="MyLogo.jpg" alt="Logo EFX" onerror="this.remove()"><h1>Construire son avenir</h1><p>EFX STUDYPLACE est une plateforme de révision et de remise à niveau : cours PDF, audios, vidéos et images.</p><a class="btn" href="#/cours">Parcourir les cours</a> <a class="btn alt" href="#/abonnement">Voir les abonnements</a></section>
   <noscript><p class="card">JavaScript est désactivé : activez-le ou ouvrez ce fichier dans un navigateur (Chrome, Firefox, Safari) pour utiliser le site.</p></noscript>
@@ -179,13 +191,13 @@ const R={};
 // ---------- Navigation ----------
 function nav(){
   let L=[['accueil','Accueil'],['cours','Cours'],['culture','Culture'],['projets','Projets'],['services','Produits et services'],['abonnement','Abonnement'],['candidature','Candidature'],['recherche','Rechercher'],['apropos','À propos'],['contact','Contact']];
-  if(admin)L.push(['admin','Tableau de bord']);
+  if(admin)L.push(['admin','Tableau de bord'],['portfolio','Portfolio']);
   if(user&&(sub||admin)&&!isApp())L.push(['application','Télécharger l’application']);
   L.push(user?['compte','Mon compte']:['connexion','Se connecter']);
   if(isPupil())L=L.filter(x=>x[0]!=='cours');
   const cur=(location.hash.slice(2)||'accueil').split('/')[0];
   $('#nav').innerHTML=L.map(([h,t])=>`<a href="#/${h}" class="${h===cur?'on':''}">${t}</a>`).join('');
-  drawMe();drawLvl();
+  drawMe();drawLvl();drawBell();
 }
 $('#burger').onclick=()=>$('#nav').classList.toggle('open');
 function route(){
@@ -245,6 +257,7 @@ async function setUser(u){
     try{const pk='efx_av_'+(user.email||'').toLowerCase(),d=localStorage.getItem(pk);
       if(d){localStorage.removeItem(pk);if(!profile?.avatar_path)await saveAvatar(await (await fetch(d)).blob())}}catch(x){console.error(x)}
   }
+  startNotifs();
 }
 window.addEventListener('hashchange',route);
 
@@ -381,7 +394,7 @@ R.candidature=async(tab='concours')=>{
   if(conc){$('#nat').onchange=geo;geo()}
   $('#cf').onsubmit=async e=>{e.preventDefault();const b=e.target.querySelector('button');b.disabled=true;
     try{await sendApp(conc?'concours':cur?'formation':'repetition',e.target,cur?{form_id:cur.id,form_title:cur.title,labels:Object.fromEntries((cur.fields||[]).map(x=>[x.type==='photo'?'portrait':x.name,x.label]))}:null);
-      toast('Envoyé avec succès. Retrouvez votre dossier dans « Mon compte ».');location.hash='#/compte'}catch(x){toast(x.message||'Envoi impossible, réessayez ou écrivez-nous par e-mail',1)}b.disabled=false};
+      toast('Envoyé avec succès. Retrouvez votre dossier dans « Mon compte ».');waBanner('Bonjour, je viens de déposer une candidature sur EFX STUDYPLACE ('+(profile?.full_name||user?.email||'')+').');location.hash='#/compte'}catch(x){toast(x.message||'Envoi impossible, réessayez ou écrivez-nous par e-mail',1)}b.disabled=false};
 };
 
 R.modalites=()=>set(`<h2>Modalités d’accès aux produits et services EFX</h2>
@@ -393,7 +406,8 @@ R.modalites=()=>set(`<h2>Modalités d’accès aux produits et services EFX</h2>
 R.apropos=()=>set(`<h2>À propos d’EFX STUDYPLACE</h2>
 <div class="card"><p>EFX STUDYPLACE est une plateforme numérique de révision, d’études et d’approfondissement. Elle accompagne les étudiants et les élèves de l’enseignement secondaire et des premières années du supérieur, avec des cours PDF, des audios, des vidéos et des images.</p><p>La plateforme fait partie de l’univers EFX SCREEN, dirigé par M. François-Xavier Edoa, président directeur général. Sa devise : « L’excellence à la portée ».</p></div>
 <div class="grid"><div class="card"><h3>Notre mission</h3><p>Rendre les cours accessibles à tout moment, pour rattraper ce qui a été manqué ou mal compris en cours magistral.</p></div><div class="card"><h3>Nos domaines</h3><p>Éducation, numérique, social, religieux et technologie. <a href="#/services">Voir tous nos services</a>.</p></div><div class="card"><h3>Établissement partenaire</h3><p>École supérieure de transport, de logistique et de commerce (ESTLC), Université d’Ebolowa, à Ambam. <a href="https://estlc.un-ebolowa.cm" target="_blank" rel="noopener">Voir le site de l’ESTLC</a>.</p></div></div>
-<div class="card"><h3>Nous contacter</h3><p>Ambam, Ebolowa, Sud-Cameroun · B.P. 01 Ambam<br><a href="mailto:${CFG.mail}">${CFG.mail}</a><br>(+237) 689054370 / 678166542 / 693020377</p><a class="btn alt sm" href="#/contact">Écrire un message</a></div>`);
+<div class="card"><h3>Nous contacter</h3><p>Ambam, Ebolowa, Sud-Cameroun · B.P. 01 Ambam<br><a href="mailto:${CFG.mail}">${CFG.mail}</a><br>(+237) 689054370 / 678166542 / 693020377</p><a class="btn alt sm" href="#/contact">Écrire un message</a></div>
+<div class="card"><h3>Bio du PDG</h3><p>La biographie du PDG est accessible sur demande, avec l’accord de l’administrateur.</p><a class="btn alt sm" href="#/bio">Bio du PDG</a></div>`);
 
 R.contact=()=>{
   set(`<h2>Contact</h2><form id="mf" class="card narrow"><p>Votre message est envoyé à ${CFG.mail}.</p><input name="name" placeholder="Votre nom" required><input name="email" type="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Votre e-mail" required><input name="subject" placeholder="Sujet" required><textarea name="message" rows="5" placeholder="Votre message" required></textarea><button class="btn">Envoyer le message</button></form>
@@ -643,7 +657,7 @@ R.compte=async()=>{
         const u=await db.storage.from('docs').upload(path,b,{contentType:'image/jpeg'});if(u.error)throw u.error;
         const r=await db.rpc('request_level',{p_file:path,p_filiere:v.filiere});if(r.error)throw r.error;
         _lvlReq=(await q(db.from('level_requests').select('*').eq('user_id',user.id).order('id',{ascending:false}).limit(1)))[0]||null;
-        toast('Demande envoyée : l’administrateur va consulter votre relevé');route()}catch(x){toast(x.message||'Échec de l’envoi',1)}};
+        toast('Demande envoyée : l’administrateur va consulter votre relevé');waBanner('Bonjour, je demande le passage au niveau supérieur sur EFX STUDYPLACE ('+(profile?.full_name||'')+').');route()}catch(x){toast(x.message||'Échec de l’envoi',1)}};
     $('#keep').onclick=async()=>{if(!confirm('Confirmer que vous restez au même niveau pour la nouvelle année ?'))return;const r=await db.rpc('keep_level');r.error?toast(r.error.message,1):(await loadProfile(),route())};
   }
   $('#pf2 [name=avatar]').onchange=e=>{const f=e.target.files[0];if(f)$('#avp').innerHTML=`<img src="${URL.createObjectURL(f)}" alt="Aperçu">`};
@@ -658,6 +672,11 @@ R.compte=async()=>{
     btn.disabled=false};
   $('#pw').onsubmit=async e=>{e.preventDefault();const{error}=await db.auth.updateUser({password:e.target.password.value});error?toast(error.message,1):(toast('Mot de passe modifié'),e.target.reset())};
 };
+
+function banner(h){const b=$('#bn');if(!b)return;if(!h){b.hidden=true;return}b.innerHTML=h+' <button class="btn sm alt" onclick="banner()">Fermer</button>';b.hidden=false}
+const WA='237689054370';
+const waLink=t=>'https://wa.me/'+WA+'?text='+encodeURIComponent(t);
+function waBanner(t){banner('Demande enregistrée. <a href="'+waLink(t)+'" target="_blank" rel="noopener">Prévenir aussi l’administrateur sur WhatsApp</a>')}
 
 // ---------- Documents PDF : factures et fiches d'inscription ----------
 const SITE_DESC='Plateforme numérique de révision, d’études et d’approfondissement : cours, audios, vidéos et images pour la remise à niveau des étudiants.';
@@ -688,6 +707,16 @@ function pdfKV(doc,y,k,v){
   doc.setFont('helvetica','bold');doc.text(doc.splitTextToSize(T_(k),56),16,y);
   doc.setFont('helvetica','normal');doc.text(lines,74,y);return y+h;
 }
+let SIGN=null;
+async function loadSign(){if(!db)return false;if(SIGN===null)SIGN=(await q(db.from('site_signatory').select('*').limit(1)))[0]||false;return SIGN}
+async function pdfSign(doc,y){
+  const g=await loadSign();if(!g)return y;
+  if(y>236){doc.addPage();y=22}y+=8;
+  const x=196;doc.setTextColor(0);doc.setFont('helvetica','bold');doc.setFontSize(10);doc.text(T_(g.nom||''),x,y,{align:'right'});
+  doc.setFont('helvetica','normal');doc.setFontSize(9);doc.text(T_(g.qualification||''),x,y+5,{align:'right'});
+  if(g.signature_path){try{const u=db.storage.from('signature').getPublicUrl(g.signature_path).data.publicUrl;doc.addImage(await toData(u),'JPEG',x-48,y+8,48,24)}catch(e){}}
+  return y+36;
+}
 async function invoicePdf(p,client){
   const doc=pdfNew();if(!doc)return;
   let y=await pdfHead(doc);
@@ -703,7 +732,7 @@ async function invoicePdf(p,client){
   doc.line(14,y,196,y);y+=6;doc.setFont('helvetica','bold');doc.setFontSize(11);doc.text('TOTAL PAYÉ',16,y);doc.text(T_(fmt(p.amount)),194,y,{align:'right'});y+=10;
   doc.setFontSize(9.5);y=pdfSec(doc,y,'Paiement');
   y=pdfKV(doc,y,'Moyen de paiement',p.method==='orange'?'Orange Money':'MTN Mobile Money');y=pdfKV(doc,y,'Référence de la transaction',p.tx_ref);y=pdfKV(doc,y,'Statut','Payée et validée');
-  pdfFoot(doc);doc.save(no+'.pdf');
+  y=await pdfSign(doc,y);pdfFoot(doc);doc.save(no+'.pdf');
 }
 const LBL={nom:'Nom',prenom:'Prénom',sexe:'Sexe',date_naissance:'Date de naissance',lieu_naissance:'Lieu de naissance',telephone:'Téléphone',cni:'N° CNI ou passeport',delivrance:'Date de délivrance',residence:'Lieu de résidence',adresse:'Adresse',email:'E-mail',situation:'Statut matrimonial',langue:'Première langue',nationalite:'Nationalité',region:'Région',departement:'Département',handicap:'Handicap',handicap_desc:'Description du handicap',filiere:'Filière',diplome:'Diplôme',serie:'Série ou spécialité',annee:'Année d’obtention',mention:'Mention',etablissement:'Établissement d’obtention',pays_diplome:'Pays d’obtention',centre_examen:'Centre d’examen',centre_depot:'Centre de dépôt',site:'Site de formation',pere:'Père ou tuteur',tel_pere:'Téléphone du père ou tuteur',mere:'Mère ou tutrice',tel_mere:'Téléphone de la mère ou tutrice',matieres:'Matières à renforcer',documents:'Pièces justificatives fournies',message:'Message'};
 const GROUPS=[['Informations personnelles',['nom','prenom','sexe','date_naissance','lieu_naissance','telephone','cni','delivrance','residence','adresse','email','situation','langue','nationalite','region','departement','handicap','handicap_desc']],['Informations académiques',['filiere','diplome','serie','annee','mention','etablissement','pays_diplome','matieres']],['Informations liées au concours',['centre_examen','centre_depot','site']],['Famille',['pere','tel_pere','mere','tel_mere']],['Pièces justificatives',['documents']]];
@@ -728,13 +757,14 @@ async function fichePdf(a,mine){
   const rest=Object.keys(d).filter(k=>!shown.has(k)&&!k.startsWith('_')&&!/_file$/.test(k));
   if(rest.length){y=pdfSec(doc,y+2,a.kind==='formation'?'Informations':'Autres informations');rest.forEach(row)}
   const files=Object.keys(d).filter(k=>/_file$/.test(k));if(files.length){y=pdfSec(doc,y+2,'Pièces jointes');y=pdfKV(doc,y,'Fichiers déposés',files.length+' fichier(s) enregistré(s) sur la plateforme')}
-  pdfFoot(doc);doc.save(no+'.pdf');
+  y=await pdfSign(doc,y);pdfFoot(doc);doc.save(no+'.pdf');
 }
 async function invMy(id){const p=_myPays.find(x=>x.id===id);if(p)invoicePdf(p,{name:profile?.full_name,email:user.email,phone:profile?.phone})}
 async function ficheMy(id){const a=_myApps.find(x=>x.id===id);if(a)fichePdf(a,true)}
 async function invAdmin(id){const p=_admPays.find(x=>x.id===id);if(p)invoicePdf(p,{name:p.profiles?.full_name,email:'',phone:p.profiles?.phone})}
 async function ficheAdmin(id){const a=_apps.find(x=>x.id===id);if(a)fichePdf(a)}
 async function decideApp(id,st){
+  if(st==='validated'&&!(await loadSign()))return toast('Renseignez d’abord votre biométrie (nom, qualification, signature) dans Portfolio',1);
   const r=await db.rpc('decide_application',{aid:id,p_status:st});if(r.error)return toast(r.error.message,1);
   for(const p of await q(db.from('payments').select('id').eq('application_id',id).eq('status','pending')))
     st==='validated'?await db.rpc('approve_payment',{pid:p.id}):await db.from('payments').update({status:'rejected'}).eq('id',p.id);
@@ -752,7 +782,7 @@ function csv(rows){const k=[...new Set(rows.flatMap(r=>Object.keys(r)))];const c
 R.admin=async(tab='contenus')=>{
   if(need())return;
   if(!admin)return set('<div class="card narrow"><h2>Accès réservé</h2><p>Connectez-vous avec le compte administrateur.</p><a class="btn" href="#/admin-login">Espace administrateur</a></div>');
-  const T=[['contenus','Contenus'],['cours','Ajouter un cours'],['catalogue','Catalogue'],['accueil','Accueil'],['services','Services'],['import','Importer les cours'],['paiements','Paiements'],['abonnes','Abonnés'],['admins','Administrateurs'],['utilisateurs','Utilisateurs'],['niveaux','Passages de niveau'],['formulaires','Formulaires'],['projets','Projets'],['chatbot','Chatbot'],['candidatures','Candidatures']];
+  const T=[['contenus','Contenus'],['messages','Messages'],['cours','Ajouter un cours'],['catalogue','Catalogue'],['accueil','Accueil'],['services','Services'],['import','Importer les cours'],['paiements','Paiements'],['abonnes','Abonnés'],['admins','Administrateurs'],['utilisateurs','Utilisateurs'],['niveaux','Passages de niveau'],['formulaires','Formulaires'],['projets','Projets'],['chatbot','Chatbot'],['candidatures','Candidatures']];
   const head=`<h2>Tableau de bord</h2><div class="tabs">${T.map(([k,t])=>`<a class="btn ${k===tab?'':'alt'} sm" href="#/admin/${k}">${t}</a>`).join('')}</div>`;
   const dbtn=t=>x=>`<button class="btn sm danger" onclick="del('${t}',${x.id})">Supprimer</button>`;
   if(tab==='contenus'){
@@ -883,6 +913,16 @@ R.admin=async(tab='contenus')=>{
   }else if(tab==='niveaux'){
     const rows=await q(db.from('level_requests').select('*,profiles(full_name,phone)').order('id',{ascending:false}));
     set(head+'<p class="small">Consultez le relevé avant de valider. En validant, le niveau (et la filière) de l’étudiant sont mis à jour.</p>'+tbl(rows.map(x=>({...x,etudiant:`${x.profiles?.full_name||''} ${x.profiles?.phone||''}`,passage:`niveau ${x.from_level} vers ${x.to_level}`})),['created_at','etudiant','passage','to_filiere','year','status'],x=>`<button class="btn sm alt" onclick="showReleve('${esc(x.file_path)}')">Voir le relevé</button>${x.status==='pending'?` <button class="btn sm" onclick="decideLevel(${x.id},true)">Valider</button> <button class="btn sm danger" onclick="decideLevel(${x.id},false)">Refuser</button>`:''}`));
+  }else if(tab==='messages'){
+    const us=((await db.rpc('list_users')).data||[]).filter(u=>!u.is_adm);
+    const hist=await q(db.from('notifications').select('*').eq('sender',user.id).order('id',{ascending:false}).limit(40));
+    set(head+`<form id="mg" class="card"><h3>Envoyer un message</h3><label>Destinataire<select name="dest"><option value="tous">Tous les utilisateurs</option><option value="etudiant">Tous les étudiants</option><option value="eleve">Tous les élèves</option><option value="enseignant">Tous les enseignants</option><optgroup label="Un utilisateur">${us.map(u=>`<option value="u:${u.id}">${esc(u.full_name||u.email)}${u.phone?' · '+esc(u.phone):''}</option>`).join('')}</optgroup></select></label><label>Titre<input name="title" required></label><label>Message<textarea name="body" rows="3" required></textarea></label><label>Lien (facultatif)<input name="link" placeholder="#/abonnement"></label><button class="btn">Envoyer la notification</button> <button type="button" class="btn alt" id="mgw">Envoyer aussi par WhatsApp</button></form><p class="small">Les utilisateurs reçoivent le message dans leur messagerie (pop-up s’ils sont connectés). WhatsApp s’ouvre avec le message prêt à envoyer.</p><h3>Messages envoyés</h3>${tbl(hist.map(h=>({...h,dest:h.user_id?'1 utilisateur':h.audience})),['created_at','dest','title','body'],dbtn('notifications'))}`);
+    $('#mg').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target)),one=v.dest.startsWith('u:');
+      const row={title:v.title,body:v.body,link:v.link||null,sender:user.id,...(one?{user_id:v.dest.slice(2)}:{audience:v.dest})};
+      const{error}=await db.from('notifications').insert(row);error?toast(error.message,1):(toast('Message envoyé'),route())};
+    $('#mgw').onclick=()=>{const v=Object.fromEntries(new FormData($('#mg')));if(!v.dest.startsWith('u:'))return toast('Choisissez un utilisateur précis pour WhatsApp',1);
+      const u=us.find(x=>'u:'+x.id===v.dest),ph=digits(u?.phone);if(!ph)return toast('Cet utilisateur n’a pas de numéro de téléphone',1);
+      window.open('https://wa.me/237'+ph+'?text='+encodeURIComponent((v.title||'')+'\n'+(v.body||'')),'_blank','noopener')};
   }else if(tab==='abonnes'){
     const rows=(await q(db.from('subscriptions').select('*,profiles(full_name,phone)').order('ends_at',{ascending:false}))).map(x=>({...x,client:`${x.profiles?.full_name||''} ${x.profiles?.phone||''}`,etat:new Date(x.ends_at)>new Date()?'actif':'expiré'}));
     set(head+tbl(rows,['client','plan_id','starts_at','ends_at','etat']));
@@ -1077,11 +1117,74 @@ $('#ex2').onclick=()=>$('#efx').classList.remove('open');
 $('#em').onclick=e=>{const v=e.target.dataset&&e.target.dataset.q;if(v)ask(v)};
 $('#ef').onsubmit=e=>{e.preventDefault();const v=$('#ei').value.trim();if(v){$('#ei').value='';ask(v)}};
 
+// ---------- Messagerie / notifications ----------
+let _nt=[],_nr=new Set(),_nLast=0,_nTimer=null;
+const unread=()=>_nt.filter(n=>!_nr.has(n.id)).length;
+function drawBell(){const b=$('#bell');if(!b)return;b.hidden=!user;const u=unread();b.innerHTML='🔔'+(u?`<span class="bd">${u>9?'9+':u}</span>`:'')}
+async function loadNotifs(first){
+  if(!db||!user)return;
+  const[ns,rs]=await Promise.all([q(db.from('notifications').select('*').order('id',{ascending:false}).limit(60)),q(db.from('notif_reads').select('notif_id').eq('user_id',user.id))]);
+  const mine=ns.filter(n=>n.sender!==user.id);_nr=new Set(rs.map(r=>r.notif_id));
+  if(_nLast&&!first)mine.filter(n=>n.id>_nLast&&!_nr.has(n.id)).slice(0,3).forEach(n=>toast('🔔 '+n.title));
+  _nLast=Math.max(_nLast,...mine.map(n=>n.id),0);_nt=mine;drawBell();
+}
+function startNotifs(){clearInterval(_nTimer);_nt=[];_nr=new Set();_nLast=0;drawBell();if(!db||!user)return;loadNotifs(true);_nTimer=setInterval(()=>{if(!document.hidden)loadNotifs()},60000)}
+R.messages=async()=>{
+  if(need())return;if(!user)return loginCard('Messagerie');
+  await loadNotifs(true);
+  const rows=_nt.slice(),fresh=rows.filter(n=>!_nr.has(n.id));
+  set(`<h2>Messagerie</h2>${rows.map(n=>`<div class="card${_nr.has(n.id)?'':' upd'}"><span class="tag">${dtt(n.created_at)}</span>${_nr.has(n.id)?'':' <b class="small">nouveau</b>'}<h3>${esc(n.title)}</h3><p style="white-space:pre-line">${esc(n.body)}</p>${safe(n.link)?`<a class="btn sm" href="${esc(safe(n.link))}">Ouvrir</a>`:''}</div>`).join('')||'<p>Aucun message pour le moment.</p>'}`);
+  if(fresh.length){await db.from('notif_reads').insert(fresh.map(n=>({user_id:user.id,notif_id:n.id})));fresh.forEach(n=>_nr.add(n.id));drawBell()}
+};
+
+// ---------- Portfolio (administrateur) et bio du PDG ----------
+const BIOF=[['etat_civil','État civil complet'],['contacts','Contacts'],['qualifications','Qualifications et aptitudes'],['cursus','Cursus scolaire'],['niveau','Niveau d’étude actuel'],['histoire','Mon histoire']];
+async function decideBio(uid,ok_){const{error}=await db.rpc('decide_bio',{p_uid:uid,accept:ok_});error?toast(error.message,1):(toast(ok_?'Accès accordé':'Accès refusé'),route())}
+R.portfolio=async()=>{
+  if(need())return;
+  if(!admin)return set('<div class="card narrow"><h2>Accès réservé</h2><p>Cette page est réservée à l’administrateur.</p></div>');
+  const sg=(await q(db.from('site_signatory').select('*').limit(1)))[0]||{},bg=(await q(db.from('bio_pdg').select('*').limit(1)))[0]||{data:{},photos:[],videos:[]},d=bg.data||{};
+  const reqs=await q(db.from('bio_requests').select('*,profiles(full_name,phone)').order('created_at',{ascending:false}));
+  set(`<h2>Portfolio</h2><p class="small">Page réservée à l’administrateur.</p>
+  <form id="bm" class="card"><h3>1. Ma biométrie</h3><p class="small">Ces trois éléments figurent sur les factures, fiches d’inscription et autres documents générés par le site.</p><div class="fields"><label>Nom<input name="nom" value="${esc(sg.nom||'')}" required></label><label>Qualification (qualité)<input name="qualification" value="${esc(sg.qualification||'')}" required></label></div>${sg.signature_path?`<p class="small">Signature actuelle :</p><div class="avl" style="width:180px;height:90px;border-radius:8px"><img src="${esc(db.storage.from('signature').getPublicUrl(sg.signature_path).data.publicUrl)}" alt="Signature" style="object-fit:contain;background:#fff"></div>`:''}<label>Signature (image)<input type="file" name="sig" accept="image/*" ${sg.signature_path?'':'required'}></label><button class="btn">Enregistrer ma biométrie</button></form>
+  <form id="bb" class="card"><h3>2. Ma bibliographie</h3><p class="small">Visible uniquement par les utilisateurs dont vous acceptez la demande (bouton « Bio du PDG » de la page À propos).</p>${BIOF.map(([k,l])=>`<label>${l}<textarea name="${k}" rows="3">${esc(d[k]||'')}</textarea></label>`).join('')}<label>Ajouter des photos<input type="file" name="photos" accept="image/*" multiple></label>${(bg.photos||[]).length?`<p class="small">${bg.photos.length} photo(s) enregistrée(s) <button type="button" class="btn sm danger" id="bpx">Supprimer toutes les photos</button></p>`:''}<label>Liens vidéo (un par ligne : YouTube…)<textarea name="videos" rows="3">${esc((bg.videos||[]).join('\n'))}</textarea></label><button class="btn">Enregistrer ma bibliographie</button></form>
+  <h3>Demandes d’accès à la bio</h3>${tbl(reqs.map(r=>({...r,qui:`${r.profiles?.full_name||''} ${r.profiles?.phone||''}`})),['created_at','qui','status'],r=>r.status==='pending'?`<button class="btn sm" onclick="decideBio('${r.user_id}',true)">Accepter</button> <button class="btn sm danger" onclick="decideBio('${r.user_id}',false)">Refuser</button>`:r.status==='approved'?`<button class="btn sm danger" onclick="decideBio('${r.user_id}',false)">Retirer l’accès</button>`:'')}`);
+  $('#bm').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target));
+    try{let path=sg.signature_path||null;
+      if(v.sig&&v.sig.size){const b=await fit(v.sig,800),p='sign-'+Date.now()+'.jpg',u=await db.storage.from('signature').upload(p,b,{contentType:'image/jpeg'});if(u.error)throw u.error;if(path)await db.storage.from('signature').remove([path]);path=p}
+      const r=await db.from('site_signatory').upsert({id:1,nom:v.nom.trim(),qualification:v.qualification.trim(),signature_path:path,updated_at:new Date().toISOString()});if(r.error)throw r.error;
+      SIGN=null;toast('Biométrie enregistrée');route()}catch(x){toast(x.message||'Échec de l’enregistrement',1)}};
+  $('#bb').onsubmit=async e=>{e.preventDefault();const f=new FormData(e.target),data={};BIOF.forEach(([k])=>data[k]=f.get(k)||'');
+    try{const ph=[...(bg.photos||[])];let i=0;
+      for(const file of f.getAll('photos')){if(!file||!file.size)continue;const p='photos/'+Date.now()+'-'+(i++)+'.jpg',u=await db.storage.from('bio').upload(p,await fit(file,1400),{contentType:'image/jpeg'});if(u.error)throw u.error;ph.push(p)}
+      const vids=String(f.get('videos')||'').split('\n').map(x=>x.trim()).filter(x=>/^https?:\/\//.test(x));
+      const r=await db.from('bio_pdg').upsert({id:1,data,photos:ph,videos:vids});if(r.error)throw r.error;toast('Bibliographie enregistrée');route()}catch(x){toast(x.message||'Échec de l’enregistrement',1)}};
+  if($('#bpx'))$('#bpx').onclick=async()=>{if(!confirm('Supprimer toutes les photos de la bibliographie ?'))return;await db.storage.from('bio').remove(bg.photos);const r=await db.from('bio_pdg').upsert({id:1,data:d,photos:[],videos:bg.videos||[]});r.error?toast(r.error.message,1):route()};
+};
+R.bio=async()=>{
+  if(need())return;if(!user)return loginCard('Bio du PDG');
+  const my=admin?{status:'approved'}:(await q(db.from('bio_requests').select('*').eq('user_id',user.id)))[0];
+  if(!my||my.status==='rejected'){
+    set(`<div class="card narrow"><h2>Bio du PDG</h2>${my?'<p>Votre précédente demande n’a pas été acceptée. Vous pouvez en faire une nouvelle.</p>':'<p>Cette section est accessible sur demande, avec l’accord de l’administrateur.</p>'}<button class="btn" id="rb">Demander l’accès</button></div>`);
+    $('#rb').onclick=async()=>{const{error}=await db.rpc('request_bio');if(error)return toast(error.message,1);toast('Demande envoyée');waBanner('Bonjour, je demande l’accès à la bio du PDG sur EFX STUDYPLACE ('+(profile?.full_name||'')+').');route()};return}
+  if(my.status==='pending')return set('<div class="card narrow"><h2>Bio du PDG</h2><p>Votre demande est en attente de validation par l’administrateur.</p></div>');
+  const{data,error}=await db.rpc('get_bio');
+  if(error||!data)return set('<div class="card narrow"><h2>Bio du PDG</h2><p>Le contenu n’est pas encore disponible.</p></div>');
+  const urls=[];for(const p of data.photos||[]){const r=await db.storage.from('bio').createSignedUrl(p,3600);if(r.data)urls.push(r.data.signedUrl)}
+  const who=esc(profile?.full_name||user.email||''),wm='url(data:image/svg+xml,'+encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' width='280' height='160'><text x='20' y='90' transform='rotate(-22 140 80)' font-family='sans-serif' font-size='17' fill='rgba(128,128,128,.28)'>${who}</text></svg>`).replace(/'/g,'%27').replace(/\(/g,'%28').replace(/\)/g,'%29')+')';
+  const d=data.data||{};
+  set(`<div class="nocopy" style="position:relative" oncontextmenu="return false" oncopy="return false" oncut="return false"><div style="position:absolute;inset:0;background-image:${wm};pointer-events:none;z-index:2"></div><h2>Bio du PDG</h2><p class="small">Document personnel : consultation seule, ne pas diffuser.</p>${BIOF.filter(([k])=>d[k]).map(([k,l])=>`<div class="card"><h3>${l}</h3><p style="white-space:pre-line">${esc(d[k])}</p></div>`).join('')}${urls.length?`<div class="grid">${urls.map(u=>`<img src="${esc(u)}" alt="" draggable="false">`).join('')}</div>`:''}${(data.videos||[]).length?`<h3>Vidéos</h3>${data.videos.map(v=>`<p><a href="${esc(v)}" target="_blank" rel="noopener">${esc(v)}</a></p>`).join('')}`:''}</div>`);
+};
+
 // ---------- Démarrage (après la définition de toutes les pages) ----------
 (()=>{const h=location.hash;if(/error_code=|error_description=/.test(h)){const p=new URLSearchParams(h.replace(/^#\/?/,'')),c=p.get('error_code'),d=(p.get('error_description')||'').replace(/\+/g,' ');
   history.replaceState(null,'',location.pathname+'#/connexion');
   setTimeout(()=>toast(c==='otp_expired'?'Ce lien a expiré ou a déjà été utilisé. Demandez-en un nouveau avec « Mot de passe oublié ? »':(d||'Lien invalide'),1,10000),400)}})();
 if('serviceWorker' in navigator&&/^https?:/.test(location.protocol))navigator.serviceWorker.register('sw.js').catch(()=>{});
+const themeNow=()=>document.documentElement.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light');
+function drawTheme(){const b=$('#thm');if(b)b.textContent=themeNow()==='dark'?'☀':'☾';const m=document.querySelector('meta[name=theme-color]');if(m)m.content=themeNow()==='dark'?'#17130a':'#b8860b'}
+$('#thm').onclick=()=>{const t=themeNow()==='dark'?'light':'dark';document.documentElement.setAttribute('data-theme',t);try{localStorage.setItem('efx_theme',t)}catch(x){}drawTheme()};
+drawTheme();
 if(devAdmin())document.querySelectorAll('.adm-link').forEach(a=>a.hidden=false);
 route();
 if(db)db.auth.onAuthStateChange((e,s)=>{
