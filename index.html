@@ -190,7 +190,9 @@ const R={};
 
 // ---------- Navigation ----------
 function nav(){
-  let L=[['accueil','Accueil'],['cours','Cours'],['culture','Culture'],['projets','Projets'],['services','Produits et services'],['abonnement','Abonnement'],['candidature','Candidature'],['recherche','Rechercher'],['apropos','À propos'],['contact','Contact']];
+  let L=[['accueil','Accueil'],['cours','Cours'],['culture','Culture'],['projets','Projets'],['formations','Formations'],['services','Produits et services'],['abonnement','Abonnement'],['candidature','Candidature'],['recherche','Rechercher'],['apropos','À propos'],['contact','Contact']];
+  if(profile?.statut==='enseignant')L.push(['enseignant','Espace enseignant']);
+  if(_prizes.length)L.push(['primes','Mes primes']);
   if(admin)L.push(['admin','Tableau de bord'],['portfolio','Portfolio']);
   if(user&&(sub||admin)&&!isApp())L.push(['application','Télécharger l’application']);
   L.push(user?['compte','Mon compte']:['connexion','Se connecter']);
@@ -257,6 +259,7 @@ async function setUser(u){
     try{const pk='efx_av_'+(user.email||'').toLowerCase(),d=localStorage.getItem(pk);
       if(d){localStorage.removeItem(pk);if(!profile?.avatar_path)await saveAvatar(await (await fetch(d)).blob())}}catch(x){console.error(x)}
   }
+  await loadPrizes();
   startNotifs();
 }
 window.addEventListener('hashchange',route);
@@ -339,17 +342,17 @@ const OFFRES='Offres du moment';
 R.abonnement=sel=>{
   if(need())return;
   if(!user)return set('<div class="card narrow"><h2>Abonnement</h2><p>Connectez-vous ou créez un compte pour vous abonner.</p><a class="btn" href="#/connexion">Se connecter</a></div>');
-  set(`<h2>Abonnement</h2>${sub?`<p class="ok">Abonnement actif jusqu’au ${dt(sub.ends_at)}. Un nouveau paiement prolonge cette date.</p>`:''}
-  <form id="pf" class="card narrow"><label>Formule<select name="plan">${myPlans().map(p=>`<option value="${p.id}" ${p.id===sel?'selected':''}>${p.label} : ${fmt(p.price)}</option>`).join('')}</select></label>
+  set(`<h2>Abonnement</h2>${bestRate()?`<p class="ok">Prime active : ${bestRate()} % de réduction sur votre prochain abonnement.</p>`:''}${sub?`<p class="ok">Abonnement actif jusqu’au ${dt(sub.ends_at)}. Un nouveau paiement prolonge cette date.</p>`:''}
+  <form id="pf" class="card narrow"><label>Formule<select name="plan">${myPlans().map(p=>`<option value="${p.id}" ${p.id===sel?'selected':''}>${p.label} : ${fmt(pr(p))}</option>`).join('')}</select></label>
   <label>Moyen de paiement<select name="meth"><option value="mtn">MTN Mobile Money</option><option value="orange">Orange Money</option></select></label>
   <p id="ins" class="card"></p>
   <label>Référence de la transaction (reçue par SMS)<input name="tx_ref" required minlength="4"></label>
   <button class="btn">J’ai effectué le paiement</button></form>`);
   const f=$('#pf'),upd=()=>{const p=ALLPLANS.find(x=>x.id===f.plan.value),n=f.meth.value==='mtn'?CFG.mtn:CFG.om;
-    $('#ins').innerHTML=`Envoyez <b>${fmt(p.price)}</b> au <b>${n}</b> (${f.meth.value==='mtn'?'MTN Mobile Money':'Orange Money'}), puis saisissez la référence ci-dessous. L’administrateur vérifie le paiement et active votre accès.`};
+    $('#ins').innerHTML=`Envoyez <b>${fmt(pr(p))}</b> au <b>${n}</b> (${f.meth.value==='mtn'?'MTN Mobile Money':'Orange Money'}), puis saisissez la référence ci-dessous. L’administrateur vérifie le paiement et active votre accès.`};
   f.onchange=upd;upd();
   f.onsubmit=async e=>{e.preventDefault();const p=ALLPLANS.find(x=>x.id===f.plan.value);
-    const{error}=await db.from('payments').insert({user_id:user.id,plan_id:p.id,amount:p.price,method:f.meth.value,tx_ref:f.tx_ref.value.trim()});
+    const{error}=await db.from('payments').insert({user_id:user.id,plan_id:p.id,amount:pr(p),method:f.meth.value,tx_ref:f.tx_ref.value.trim()});
     if(error)return toast(error.code==='23505'?'Cette référence a déjà été utilisée':error.message,1);
     toast('Paiement enregistré, en attente de validation');location.hash='#/compte'};
 };
@@ -636,6 +639,7 @@ R.compte=async()=>{
   if(!user){location.hash='#/connexion';return}
   const p=await q(db.from('payments').select('*').eq('user_id',user.id).order('id',{ascending:false}));
   const apps=await q(db.from('applications').select('*').eq('user_id',user.id).order('id',{ascending:false}));_myPays=p;_myApps=apps;
+  _myCerts=await q(db.from('certificates').select('*').eq('user_id',user.id));_myAtts=await q(db.from('attestations').select('*').eq('user_id',user.id));
   const u=avUrl(profile?.avatar_path),n=profile?.full_name||'';
   set(`<h2>Mon compte</h2>
   ${lvlCard()}
@@ -644,6 +648,7 @@ R.compte=async()=>{
   <div class="fields"><label>Nom complet<input name="full_name" value="${esc(n)}" required></label><label>Téléphone<input name="phone" type="tel" value="${esc(profile?.phone||'')}"></label>${isPupil()?'':`<label>E-mail<input name="email" type="email" autocapitalize="none" autocorrect="off" spellcheck="false" value="${esc(user.email)}" required></label>`}</div>
   <button class="btn">Enregistrer les modifications</button></form>
   <form id="pw" class="card"><h3>Changer le mot de passe</h3><input type="email" name="username" value="${esc(user.email)}" autocomplete="username" tabindex="-1" style="position:absolute;left:-9999px" aria-hidden="true"><input name="password" type="password" minlength="8" placeholder="Nouveau mot de passe (8 caractères minimum)" required autocomplete="new-password"><button class="btn">Modifier le mot de passe</button></form>
+  ${docsCard()}
   <div class="card"><p>${sub?`Abonnement <b>${esc(sub.plan_id)}</b> actif jusqu’au ${dt(sub.ends_at)}.`:'Aucun abonnement actif.'}</p><a class="btn" href="#/abonnement">${sub?'Prolonger':'S’abonner'}</a> <button class="btn alt" onclick="db.auth.signOut().then(()=>location.hash='#/accueil')">Se déconnecter</button>${(sub||admin)&&!isApp()?' <a class="btn alt" href="#/application">Télécharger l’application</a>':''}</div><h3>Mes candidatures</h3>${tbl(apps.map(a=>({...a,type:a.form_title||a.kind,statut:{pending:'en attente',validated:'validée',rejected:'rejetée'}[a.status]})),['created_at','type','statut'],a=>a.status==='validated'?`<button class="btn sm" onclick="ficheMy(${a.id})">Fiche d’inscription (PDF)</button>`:'')}<h3>Mes paiements et factures</h3>${tbl(p.map(x=>({...x,objet:x.label||x.plan_id})),['created_at','objet','amount','method','tx_ref','status'],x=>x.status==='approved'?`<button class="btn sm" onclick="invMy(${x.id})">Facture (PDF)</button>`:'')}`);
   if($('#lv0')){
     $('#n0').onchange=()=>{$('#f0').innerHTML='<option value="">Choisir</option>'+filsFor($('#n0').value).map(f=>`<option>${f}</option>`).join('')};
@@ -782,7 +787,7 @@ function csv(rows){const k=[...new Set(rows.flatMap(r=>Object.keys(r)))];const c
 R.admin=async(tab='contenus')=>{
   if(need())return;
   if(!admin)return set('<div class="card narrow"><h2>Accès réservé</h2><p>Connectez-vous avec le compte administrateur.</p><a class="btn" href="#/admin-login">Espace administrateur</a></div>');
-  const T=[['contenus','Contenus'],['messages','Messages'],['cours','Ajouter un cours'],['catalogue','Catalogue'],['accueil','Accueil'],['services','Services'],['import','Importer les cours'],['paiements','Paiements'],['abonnes','Abonnés'],['admins','Administrateurs'],['utilisateurs','Utilisateurs'],['niveaux','Passages de niveau'],['formulaires','Formulaires'],['projets','Projets'],['chatbot','Chatbot'],['candidatures','Candidatures']];
+  const T=[['contenus','Contenus'],['messages','Messages'],['formations','Formations'],['enseignants','Enseignants'],['primes','Primes'],['attestations','Attestations'],['cours','Ajouter un cours'],['catalogue','Catalogue'],['accueil','Accueil'],['services','Services'],['import','Importer les cours'],['paiements','Paiements'],['abonnes','Abonnés'],['admins','Administrateurs'],['utilisateurs','Utilisateurs'],['niveaux','Passages de niveau'],['formulaires','Formulaires'],['projets','Projets'],['chatbot','Chatbot'],['candidatures','Candidatures']];
   const head=`<h2>Tableau de bord</h2><div class="tabs">${T.map(([k,t])=>`<a class="btn ${k===tab?'':'alt'} sm" href="#/admin/${k}">${t}</a>`).join('')}</div>`;
   const dbtn=t=>x=>`<button class="btn sm danger" onclick="del('${t}',${x.id})">Supprimer</button>`;
   if(tab==='contenus'){
@@ -923,6 +928,32 @@ R.admin=async(tab='contenus')=>{
     $('#mgw').onclick=()=>{const v=Object.fromEntries(new FormData($('#mg')));if(!v.dest.startsWith('u:'))return toast('Choisissez un utilisateur précis pour WhatsApp',1);
       const u=us.find(x=>'u:'+x.id===v.dest),ph=digits(u?.phone);if(!ph)return toast('Cet utilisateur n’a pas de numéro de téléphone',1);
       window.open('https://wa.me/237'+ph+'?text='+encodeURIComponent((v.title||'')+'\n'+(v.body||'')),'_blank','noopener')};
+  }else if(tab==='formations'){
+    if(_fid)return formationAdmin(head);
+    const fr=await q(db.from('forms').select('*').eq('is_formation',true).order('id',{ascending:false}));
+    set(head+`<form id="nf" class="card"><h3>Créer une formation</h3><p class="small">Un formulaire d’inscription est créé automatiquement (nom, téléphone, e-mail, photo, motivation). Il apparaît dans Candidature et dans la page Formations.</p><div class="fields"><label>Nom de la formation<input name="title" required></label><label>Durée<input name="duration" placeholder="Ex. 3 mois"></label><label>Début<input name="start_date" type="date"></label><label>Fin<input name="end_date" type="date"></label><label>Frais d’inscription (FCFA, 0 = gratuit)<input name="fee" type="number" min="0" value="0"></label><label>Public visé<select name="audience"><option value="tous">Tous</option><option value="etudiant">Étudiants</option><option value="eleve">Élèves</option></select></label><label>Catégorie<input name="categorie" placeholder="Université, lycée, public…"></label><label>Niveaux (séparés par des virgules)<input name="niveaux" placeholder="Niveau 1, Niveau 2"></label></div><label>Description<textarea name="description" rows="2"></textarea></label><label>Étapes de la formation (une par ligne)<textarea name="steps" rows="4" required placeholder="Étape 1\nÉtape 2"></textarea></label><button class="btn">Créer la formation</button></form>${tbl(fr.map(x=>({...x,etat:x.is_active?'ouverte':'masquée',etapes:(x.steps||[]).length,prix:x.payment_amount})),['id','title','duration','etapes','prix','etat'],x=>`<button class="btn sm" onclick="_fid=${x.id};route()">Gérer</button> <button class="btn sm alt" onclick="setField('forms',${x.id},'is_active',${!x.is_active})">${x.is_active?'Masquer':'Ouvrir'}</button> <button class="btn sm danger" onclick="del('forms',${x.id})">Supprimer</button>`)}`);
+    $('#nf').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target)),steps=v.steps.split('\n').map(x=>x.trim()).filter(Boolean);
+      if(!steps.length)return toast('Ajoutez au moins une étape',1);
+      const fields=[['nom_complet','Nom complet','text',1],['telephone','Téléphone','tel',1],['email','E-mail','email',0],['photo','Photo de portrait','photo',1],['motivation','Pourquoi cette formation ?','textarea',0]].map(([n,l,t,r],i)=>({name:n+'_'+(i+1),label:l,type:t,required:!!r,options:[]}));
+      const{error}=await db.from('forms').insert({title:v.title,description:v.description||null,fields,payment_amount:Math.max(0,+v.fee||0),is_formation:true,duration:v.duration||null,start_date:v.start_date||null,end_date:v.end_date||null,steps,audience:v.audience,categorie:v.categorie||null,niveaux:v.niveaux.split(',').map(x=>x.trim()).filter(Boolean)});
+      error?toast(error.message,1):(toast('Formation créée'),route())};
+  }else if(tab==='enseignants'){
+    const[ts,us,fs]=await Promise.all([db.rpc('list_teachers').then(r=>r.data||[]),db.rpc('list_users').then(r=>r.data||[]),q(db.from('forms').select('id,title').eq('is_formation',true))]);
+    const cur=_etid?ts.find(t=>t.user_id===_etid):null;
+    set(head+`<form id="te" class="card"><h3>${cur?'Modifier l’enseignant':'Ajouter un enseignant'}</h3>${cur?`<p><b>${esc(cur.full_name)}</b> · ${esc(cur.phone||'')}</p>`:`<label>Utilisateur<select name="uid" required><option value="">Choisir</option>${us.filter(u=>!u.is_adm&&!ts.some(t=>t.user_id===u.id)).map(u=>`<option value="${u.id}">${esc(u.full_name||u.email)}${u.phone?' · '+esc(u.phone):''}</option>`).join('')}</select></label>`}<label>Spécialité<input name="spec" value="${esc(cur?.specialite||'')}"></label><label>Note<input name="note" value="${esc(cur?.note||'')}"></label><label>Formations attribuées (appui long pour en choisir plusieurs)<select name="forms" multiple size="4">${fs.map(f=>`<option value="${f.id}" ${(cur?.forms||[]).includes(f.id)?'selected':''}>${esc(f.title)}</option>`).join('')}</select></label><button class="btn">Enregistrer</button> ${cur?'<button type="button" class="btn alt" onclick="_etid=null;route()">Annuler</button>':''}</form>${tbl(ts.map(t=>({...t,formations:fs.filter(f=>(t.forms||[]).includes(f.id)).map(f=>f.title).join(', ')})),['full_name','email','phone','specialite','formations'],t=>`<button class="btn sm alt" onclick="_etid='${t.user_id}';route()">Modifier</button> <button class="btn sm danger" onclick="rmTeacher('${t.user_id}')">Retirer</button>`)}`);
+    $('#te').onsubmit=async e=>{e.preventDefault();const f=e.target,sel=[...f.elements.forms.selectedOptions].map(o=>+o.value),uid=cur?cur.user_id:f.elements.uid.value;
+      const{error}=await db.rpc('set_teacher',{p_uid:uid,p_spec:f.elements.spec.value||null,p_note:f.elements.note.value||null,p_forms:sel});error?toast(error.message,1):(toast('Enseignant enregistré'),_etid=null,route())};
+  }else if(tab==='primes'){
+    const el=await q(db.from('applications').select('user_id,profiles(full_name,phone)').eq('kind','repetition').eq('status','validated'));
+    const uniq=[...new Map(el.filter(x=>x.user_id).map(x=>[x.user_id,x])).values()];
+    const ps=await q(db.from('prizes').select('*,profiles(full_name,phone)').order('id',{ascending:false}));
+    set(head+`<form id="pz" class="card"><h3>Attribuer une prime</h3><p class="small">Réservée aux inscrits aux cours de répétition. La réduction s’applique à leur prochain réabonnement et ils reçoivent une notification signée de votre biométrie.</p><div class="fields"><label>Utilisateur<select name="uid" required><option value="">Choisir</option>${uniq.map(x=>`<option value="${x.user_id}">${esc(x.profiles?.full_name||'')} · ${esc(x.profiles?.phone||'')}</option>`).join('')}</select></label><label>Taux de réduction (%)<input name="rate" type="number" min="1" max="100" required></label><label>Motif<input name="reason" placeholder="Ex. Meilleur élève du mois"></label></div><button class="btn">Attribuer la prime</button></form>${tbl(ps.map(x=>({...x,qui:x.profiles?.full_name||'',etat:x.used_at?'utilisée':'disponible'})),['created_at','qui','rate','reason','etat'],dbtn('prizes'))}`);
+    $('#pz').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target));const{error}=await db.rpc('grant_prize',{p_uid:v.uid,p_rate:+v.rate,p_reason:v.reason||null});error?toast(error.message,1):(toast('Prime attribuée'),route())};
+  }else if(tab==='attestations'){
+    const aps=await q(db.from('applications').select('id,user_id,data,profiles(full_name,phone)').eq('kind','repetition').eq('status','validated').order('id',{ascending:false}));
+    const dn=new Set((await q(db.from('attestations').select('application_id'))).map(a=>a.application_id));
+    set(head+`<p class="small">Entrez la moyenne et la période des cours, puis délivrez l’attestation : le bouton de téléchargement apparaît alors chez l’utilisateur.</p>`+(aps.map(a=>`<form class="card att"><b>${esc(a.profiles?.full_name||((a.data.nom||'')+' '+(a.data.prenom||'')))}</b> <span class="small">${esc(a.profiles?.phone||'')}</span>${dn.has(a.id)?' <span class="ok">Attestation délivrée</span>':`<input type="hidden" name="id" value="${a.id}"><div class="fields"><label>Moyenne /20<input name="avg" type="number" step="0.01" min="0" max="20" required></label><label>Début des cours<input name="d1" type="date" required></label><label>Fin des cours<input name="d2" type="date" required></label></div><button class="btn sm">Délivrer l’attestation</button>`}</form>`).join('')||'<p>Aucune inscription validée aux cours de répétition.</p>'));
+    document.querySelectorAll('.att').forEach(f=>f.onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(f));const{error}=await db.rpc('issue_attestation',{aid:+v.id,p_avg:+v.avg,p_start:v.d1,p_end:v.d2});error?toast(error.message,1):(toast('Attestation délivrée'),route())});
   }else if(tab==='abonnes'){
     const rows=(await q(db.from('subscriptions').select('*,profiles(full_name,phone)').order('ends_at',{ascending:false}))).map(x=>({...x,client:`${x.profiles?.full_name||''} ${x.profiles?.phone||''}`,etat:new Date(x.ends_at)>new Date()?'actif':'expiré'}));
     set(head+tbl(rows,['client','plan_id','starts_at','ends_at','etat']));
@@ -1175,6 +1206,95 @@ R.bio=async()=>{
   const d=data.data||{};
   set(`<div class="nocopy" style="position:relative" oncontextmenu="return false" oncopy="return false" oncut="return false"><div style="position:absolute;inset:0;background-image:${wm};pointer-events:none;z-index:2"></div><h2>Bio du PDG</h2><p class="small">Document personnel : consultation seule, ne pas diffuser.</p>${BIOF.filter(([k])=>d[k]).map(([k,l])=>`<div class="card"><h3>${l}</h3><p style="white-space:pre-line">${esc(d[k])}</p></div>`).join('')}${urls.length?`<div class="grid">${urls.map(u=>`<img src="${esc(u)}" alt="" draggable="false">`).join('')}</div>`:''}${(data.videos||[]).length?`<h3>Vidéos</h3>${data.videos.map(v=>`<p><a href="${esc(v)}" target="_blank" rel="noopener">${esc(v)}</a></p>`).join('')}`:''}</div>`);
 };
+
+// ---------- Étape 3 : primes, certificats, attestations, formations, enseignants ----------
+let _prizes=[],_myCerts=[],_myAtts=[],_fcert=[],_fid=null,_etid=null;
+async function loadPrizes(){_prizes=db&&user?await q(db.from('prizes').select('*').eq('user_id',user.id).order('id',{ascending:false})):[]}
+const bestRate=()=>_prizes.filter(x=>!x.used_at).reduce((m,x)=>Math.max(m,x.rate),0);
+const pr=p=>Math.round(p.price*(100-bestRate())/100);
+const docsCard=()=>(_myCerts.length||_myAtts.length)?`<div class="card"><h3>Mes certificats et attestations</h3>${_myCerts.map(c=>`<p>Certificat : ${esc(c.data.formation)} <button class="btn sm" onclick="certMy(${c.id})">Télécharger le certificat</button></p>`).join('')}${_myAtts.map(a=>`<p>Attestation de fin de cours <button class="btn sm" onclick="attMy(${a.id})">Télécharger l’attestation</button></p>`).join('')}</div>`:'';
+async function certPdf(c){
+  const doc=pdfNew();if(!doc)return;let y=await pdfHead(doc);const d=c.data||{};
+  doc.setTextColor(0);doc.setFont('helvetica','bold');doc.setFontSize(20);doc.text('CERTIFICAT DE FORMATION',105,y+6,{align:'center'});y+=14;
+  doc.setFontSize(9);doc.setFont('helvetica','normal');doc.text('N° '+c.no,105,y,{align:'center'});y+=14;
+  doc.setFontSize(12);doc.text(T_('EFX STUDYPLACE certifie que'),105,y,{align:'center'});y+=12;
+  doc.setFont('helvetica','bold');doc.setFontSize(18);doc.text(T_(d.nom||''),105,y,{align:'center'});y+=12;
+  doc.setFont('helvetica','normal');doc.setFontSize(12);doc.text(T_('a suivi avec succès toutes les étapes de la formation'),105,y,{align:'center'});y+=9;
+  doc.setFont('helvetica','bold');doc.setFontSize(15);const t=doc.splitTextToSize(T_(d.formation||''),160);doc.text(t,105,y,{align:'center'});y+=t.length*7+4;
+  doc.setFont('helvetica','normal');doc.setFontSize(11);
+  doc.text(T_('Début : '+(d.debut?dt(d.debut):'-')+'     Fin : '+(d.fin?dt(d.fin):'-')),105,y,{align:'center'});y+=7;
+  if(d.duree){doc.text(T_('Durée : '+d.duree),105,y,{align:'center'});y+=7}
+  doc.setFontSize(10);doc.text(T_('Délivré le '+dt(c.issued_at)+' · Plateforme : '+location.origin+location.pathname),105,y+4,{align:'center'});y+=14;
+  y=await pdfSign(doc,y);pdfFoot(doc);doc.save(c.no+'.pdf');
+}
+async function attPdf(a){
+  const doc=pdfNew();if(!doc)return;let y=await pdfHead(doc);const d=a.data||{};
+  doc.setTextColor(0);doc.setFont('helvetica','bold');doc.setFontSize(16);doc.text('ATTESTATION DE FIN DE COURS',14,y);doc.setFontSize(10);doc.text('N° '+a.no,196,y,{align:'right'});y+=9;
+  doc.setFont('helvetica','normal');doc.setFontSize(10);const nm=d._nom||((d.nom||'')+' '+(d.prenom||'')).trim();
+  const t=doc.splitTextToSize(T_('EFX STUDYPLACE atteste que '+nm+' a suivi les cours de répétition du '+dt(a.period_start)+' au '+dt(a.period_end)+', avec une moyenne de '+Number(a.average).toFixed(2).replace('.',',')+'/20.'),182);doc.text(t,14,y);y+=t.length*5+6;
+  y=pdfSec(doc,y,'Informations d’inscription');
+  for(const[k,v]of Object.entries(d)){if(!v||/_file$|^_/.test(k)||typeof v==='object')continue;if(y>262){doc.addPage();y=22}y=pdfKV(doc,y,k.replace(/_/g,' ').replace(/^./,c=>c.toUpperCase()),String(v))}
+  y+=3;y=pdfKV(doc,y,'Période des cours',dt(a.period_start)+' au '+dt(a.period_end));y=pdfKV(doc,y,'Moyenne',Number(a.average).toFixed(2)+'/20');
+  y=await pdfSign(doc,y);pdfFoot(doc);doc.save(a.no+'.pdf');
+}
+const certMy=id=>{const c=_myCerts.find(x=>x.id===id);if(c)certPdf(c)},certMine=id=>{const c=_fcert.find(x=>x.id===id);if(c)certPdf(c)},attMy=id=>{const a=_myAtts.find(x=>x.id===id);if(a)attPdf(a)};
+async function setField(t,id,f,v){const{error}=await db.from(t).update({[f]:v}).eq('id',id);error?toast(error.message,1):route()}
+async function setStep(fid,uid,n,on){const{error}=await db.rpc('set_step',{fid,uid,p_step:n,p_done:on});error?toast(error.message,1):toast(on?'Étape validée':'Étape retirée')}
+async function issueCert(fid,uid){const{error}=await db.rpc('issue_certificate',{fid,uid});error?toast(error.message,1):(toast('Certificat délivré'),route())}
+async function rmMember(fid,uid){if(!confirm('Retirer ce membre de la formation ?'))return;const{error}=await db.from('formation_members').delete().eq('form_id',fid).eq('user_id',uid);error?toast(error.message,1):route()}
+async function rmTeacher(uid){if(!confirm('Retirer le statut d’enseignant à cet utilisateur ?'))return;const{error}=await db.rpc('remove_teacher',{p_uid:uid});error?toast(error.message,1):(toast('Enseignant retiré'),route())}
+
+R.primes=async()=>{
+  if(need())return;if(!user)return loginCard('Mes primes');
+  await loadPrizes();
+  set(`<h2>Mes primes</h2><p>Une prime vous donne une réduction sur votre prochain réabonnement.</p>${_prizes.map(x=>`<div class="card"><span class="tag">${x.used_at?'utilisée':'disponible'}</span><h3>${x.rate} % de réduction</h3><p>${esc(x.reason||'')}</p><p class="small">Attribuée le ${dt(x.created_at)}</p>${x.used_at?'':'<a class="btn sm" href="#/abonnement">Utiliser maintenant</a>'}</div>`).join('')||'<p>Aucune prime pour le moment.</p>'}`);
+};
+R.formations=async()=>{
+  if(need())return;
+  const[fs,mine]=await Promise.all([q(db.from('forms').select('*').eq('is_formation',true).eq('is_active',true).order('id',{ascending:false})),user?q(db.from('formation_members').select('form_id').eq('user_id',user.id)):[]]);
+  const mem=new Set(mine.map(m=>m.form_id)),me=profile?.statut==='eleve'?'eleve':'etudiant';
+  set(`<h2>Formations</h2><p>Inscrivez-vous à une formation, suivez ses étapes et recevez un certificat à la fin.</p><div class="grid">${fs.filter(f=>f.audience==='tous'||f.audience===me||admin).map(f=>`<div class="card"><h3>${esc(f.title)}</h3><p class="small">${f.duration?'Durée : '+esc(f.duration):''}${f.start_date?' · du '+dt(f.start_date):''}${f.end_date?' au '+dt(f.end_date):''}</p><p>${esc(f.description)}</p><p><b>${f.payment_amount?fmt(f.payment_amount):'Gratuit'}</b></p>${mem.has(f.id)||admin?`<a class="btn sm" href="#/formation/${f.id}">Ouvrir</a>`:`<a class="btn sm" href="#/candidature/f${f.id}">S’inscrire</a>`}</div>`).join('')||'<p>Aucune formation pour le moment.</p>'}</div>`);
+};
+R.formation=async id=>{
+  if(need())return;if(!user)return loginCard('Formation');id=+id;
+  const f=(await q(db.from('forms').select('*').eq('id',id)))[0];
+  if(!f)return set('<div class="card"><p>Formation introuvable.</p><a class="btn" href="#/formations">Retour</a></div>');
+  const m=(await q(db.from('formation_members').select('*').eq('form_id',id).eq('user_id',user.id)))[0],tch=(await q(db.from('teacher_formations').select('form_id').eq('form_id',id).eq('user_id',user.id)))[0];
+  if(!m&&!tch&&!admin)return set(`<div class="card narrow"><h2>${esc(f.title)}</h2><p>Le contenu de cette formation est réservé à ses membres.</p><a class="btn" href="#/candidature/f${id}">S’inscrire</a></div>`);
+  _c=await q(db.from('contents').select('*').eq('form_id',id).order('created_at',{ascending:false}));
+  const steps=f.steps||[],done=new Set(m?.steps_done||[]),cert=(await q(db.from('certificates').select('*').eq('form_id',id).eq('user_id',user.id)))[0];_fcert=cert?[cert]:[];
+  set(`<a href="#/formations" class="small">Retour aux formations</a><h2>${esc(f.title)}</h2><p>${esc(f.description)}</p><p class="small">${f.duration?'Durée : '+esc(f.duration)+' · ':''}${f.start_date?'du '+dt(f.start_date)+' ':''}${f.end_date?'au '+dt(f.end_date):''}</p>
+  ${steps.length&&m?`<h3>Mes étapes</h3><progress value="${[...done].filter(x=>x<=steps.length).length}" max="${steps.length}"></progress><div class="card">${steps.map((x,i)=>`<p>${done.has(i+1)?'✔':'☐'} ${i+1}. ${esc(x)}</p>`).join('')}</div>`:''}
+  ${cert?`<div class="card"><b>Certificat disponible</b> <button class="btn sm" onclick="certMine(${cert.id})">Télécharger le certificat</button></div>`:''}
+  <h3>Contenu</h3><div class="grid">${_c.filter(c=>c.is_published).map(contentCard).join('')||'<p>Aucun contenu publié pour le moment.</p>'}</div>`);
+};
+R.enseignant=async()=>{
+  if(need())return;if(!user)return loginCard('Espace enseignant');
+  if(profile?.statut!=='enseignant'&&!admin)return set('<div class="card narrow"><h2>Espace enseignant</h2><p>Cette page est réservée aux enseignants désignés par l’administrateur.</p></div>');
+  const tf=await q(db.from('teacher_formations').select('form_id').eq('user_id',user.id));
+  const fs=tf.length?await q(db.from('forms').select('id,title').in('id',tf.map(x=>x.form_id))):[];
+  const mine=await q(db.from('contents').select('*').eq('uploaded_by',user.id).order('id',{ascending:false}));
+  set(`<h2>Espace enseignant</h2>${fs.length?`<form id="tu" class="card"><h3>Déposer un cours</h3><div class="fields"><label>Formation<select name="form_id" required>${fs.map(f=>`<option value="${f.id}">${esc(f.title)}</option>`).join('')}</select></label><label>Matière<input name="matiere" required></label><label>Niveau ou classe concerné<input name="niveau" required></label><label>Titre du cours<input name="title" required></label></div><label>Fichier (Word, PDF, vidéo, audio, image…)<input type="file" name="file" required></label><p class="small">Votre nom (${esc(profile?.full_name||'')}) est enregistré avec le cours. L’administrateur décide ensuite de l’afficher ou non.</p><button class="btn">Envoyer le cours</button></form>`:'<p>Aucune formation ne vous est encore attribuée.</p>'}<h3>Mes cours déposés</h3>${tbl(mine.map(x=>({...x,etat:x.is_published?'affiché':'en attente'})),['created_at','title','matiere','niveau','etat'])}`);
+  if($('#tu'))$('#tu').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target)),file=v.file;
+    try{const path='formation/'+v.form_id+'/'+Date.now()+'-'+file.name.replace(/[^\w.-]/g,'_'),u=await db.storage.from('cours').upload(path,file);if(u.error)throw u.error;
+      const r=await db.from('contents').insert({section:'formation',form_id:+v.form_id,kind:guess(file.name),title:v.title,matiere:v.matiere,niveau:v.niveau,author:profile?.full_name||null,uploaded_by:user.id,file_path:path,mime_type:file.type||null,size_bytes:file.size,is_published:false,is_premium:false});
+      if(r.error)throw r.error;toast('Cours envoyé : en attente de validation');route()}catch(x){toast(x.message||'Échec de l’envoi',1)}};
+};
+
+async function formationAdmin(head){
+  const f=(await q(db.from('forms').select('*').eq('id',_fid)))[0];if(!f){_fid=null;return route()}
+  const[mem,cs,ce,us]=await Promise.all([q(db.from('formation_members').select('*,profiles(full_name,phone)').eq('form_id',_fid)),q(db.from('contents').select('*').eq('form_id',_fid).order('id',{ascending:false})),q(db.from('certificates').select('user_id').eq('form_id',_fid)),db.rpc('list_users').then(r=>r.data||[])]);
+  const steps=f.steps||[],has=new Set(ce.map(c=>c.user_id));
+  set(head+`<button class="btn sm alt" onclick="_fid=null;route()">Retour aux formations</button><h3>${esc(f.title)}</h3>
+  <h4>Membres (${mem.length})</h4><div class="tw"><table><tr><th>Nom</th><th>Téléphone</th>${steps.map((x,i)=>`<th title="${esc(x)}">Étape ${i+1}</th>`).join('')}<th>Actions</th></tr>${mem.map(m=>`<tr><td>${esc(m.profiles?.full_name)}</td><td>${esc(m.profiles?.phone)}</td>${steps.map((x,i)=>`<td><input type="checkbox" ${(m.steps_done||[]).includes(i+1)?'checked':''} onchange="setStep(${_fid},'${m.user_id}',${i+1},this.checked)"></td>`).join('')}<td>${has.has(m.user_id)?'<span class="ok">Certificat délivré</span>':`<button class="btn sm" onclick="issueCert(${_fid},'${m.user_id}')">Délivrer le certificat</button>`} <button class="btn sm danger" onclick="rmMember(${_fid},'${m.user_id}')">Retirer</button></td></tr>`).join('')||'<tr><td>Aucun membre.</td></tr>'}</table></div>
+  <form id="am" class="row"><select name="uid" required><option value="">Ajouter un membre…</option>${us.filter(u=>!u.is_adm&&!mem.some(m=>m.user_id===u.id)).map(u=>`<option value="${u.id}">${esc(u.full_name||u.email)}${u.phone?' · '+esc(u.phone):''}</option>`).join('')}</select><button class="btn sm">Ajouter</button></form>
+  <h4>Contenu de la formation</h4><form id="ac2" class="card"><div class="fields"><label>Titre<input name="title" required></label><label>Matière<input name="matiere"></label><label>Niveau ou classe<input name="niveau"></label></div><label>Fichier (Word, PDF, vidéo, audio, image…)<input type="file" name="file" required></label><label><span><input type="checkbox" name="pub" checked> Affiché aux membres</span></label><button class="btn">Ajouter le contenu</button></form>${tbl(cs.map(x=>({...x,etat:x.is_published?'affiché':'en attente',par:x.author||''})),['title','matiere','niveau','par','etat'],x=>`<button class="btn sm alt" onclick="setField('contents',${x.id},'is_published',${!x.is_published})">${x.is_published?'Masquer':'Afficher'}</button> <button class="btn sm danger" onclick="del('contents',${x.id})">Supprimer</button>`)}`);
+  $('#am').onsubmit=async e=>{e.preventDefault();const{error}=await db.from('formation_members').insert({form_id:_fid,user_id:e.target.uid.value});error?toast(error.message,1):route()};
+  $('#ac2').onsubmit=async e=>{e.preventDefault();const v=Object.fromEntries(new FormData(e.target)),file=v.file;
+    try{const path='formation/'+_fid+'/'+Date.now()+'-'+file.name.replace(/[^\w.-]/g,'_'),u=await db.storage.from('cours').upload(path,file);if(u.error)throw u.error;
+      const r=await db.from('contents').insert({section:'formation',form_id:_fid,kind:guess(file.name),title:v.title,matiere:v.matiere||null,niveau:v.niveau||null,author:'Administration',uploaded_by:user.id,file_path:path,mime_type:file.type||null,size_bytes:file.size,is_published:v.pub==='on',is_premium:false});
+      if(r.error)throw r.error;toast('Contenu ajouté');route()}catch(x){toast(x.message||'Échec',1)}};
+}
 
 // ---------- Démarrage (après la définition de toutes les pages) ----------
 (()=>{const h=location.hash;if(/error_code=|error_description=/.test(h)){const p=new URLSearchParams(h.replace(/^#\/?/,'')),c=p.get('error_code'),d=(p.get('error_description')||'').replace(/\+/g,' ');
